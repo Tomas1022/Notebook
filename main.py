@@ -1,17 +1,14 @@
-##main.py
 import ctypes
 import sys
 import tkinter as tk
-from tkinter import ttk
+from typing import ClassVar
 
 from calculator.calculadora import CalculadoraFrame
 from dibujo import DibujoFrame
 from notas import NotasFrame
-from theme import ThemeManager, ThemeSwitch, crear_icono_tab, mezclar_color
+from theme import ThemeManager, ThemeSwitch
 
-# --- Fix de nitidez en pantallas con escalado (Windows) ---
-# Sin esto, Windows "estira" la ventana como si fuera una imagen de baja
-# resolucion en monitores con escalado >100%, y todo se ve borroso/pixelado.
+
 if sys.platform == "win32":
     try:
         ctypes.windll.shcore.SetProcessDpiAwareness(1)
@@ -23,11 +20,12 @@ if sys.platform == "win32":
 
 
 class App(tk.Tk):
-    TABS = [
-        ("notas", "Notas"),
-        ("calculadora", "Calculadora"),
-        ("dibujo", "Dibujo"),
-    ]
+
+    TABS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("notas", "▤  Notas"),
+        ("calculadora", "▦  Calculadora"),
+        ("dibujo", "✎  Dibujo"),
+    )
 
     def __init__(self):
         super().__init__()
@@ -39,76 +37,203 @@ class App(tk.Tk):
         self.minsize(650, 480)
 
         self.theme_manager = ThemeManager()
+        self.tab_actual = 0
 
-        # --- Barra superior: titulo + switch de tema ---
-        self.barra_superior = tk.Frame(self, height=44)
+        self.barra_superior = tk.Frame(self)
         self.barra_superior.pack(fill="x", side="top")
 
-        self.label_titulo = tk.Label(self.barra_superior, text="  Notebook", font=("Arial", 12, "bold"))
-        self.label_titulo.pack(side="left", pady=8)
+        self.label_titulo = tk.Label(
+            self.barra_superior,
+            text="Notebook",
+            font=("Arial", 12, "bold")
+        )
+        self.label_titulo.pack(
+            side="left",
+            padx=16,
+            pady=8
+        )
 
-        self.switch_tema = ThemeSwitch(self.barra_superior, self.theme_manager)
-        self.switch_tema.pack(side="right", padx=14, pady=8)
+        self.switch_tema = ThemeSwitch(
+            self.barra_superior,
+            self.theme_manager
+        )
+        self.switch_tema.pack(
+            side="right",
+            padx=14,
+            pady=8
+        )
 
-        # --- Notebook = contenedor de pestañas ---
-        self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill="both", expand=True)
+        self.barra_tabs = tk.Frame(self)
+        self.barra_tabs.pack(
+            fill="x",
+            side="top"
+        )
 
-        self.notas_tab = NotasFrame(self.notebook, self.theme_manager)
-        self.calculadora_tab = CalculadoraFrame(self.notebook, self.theme_manager)
-        self.dibujo_tab = DibujoFrame(self.notebook, self.theme_manager)
+        self.botones_tabs = {}
+        self.indicadores_tabs = {}
 
-        self.notebook.add(self.notas_tab, text=" Notas")
-        self.notebook.add(self.calculadora_tab, text=" Calculadora")
-        self.notebook.add(self.dibujo_tab, text=" Dibujo")
+        self.contenedor = tk.Frame(self)
+        self.contenedor.pack(
+            fill="both",
+            expand=True
+        )
 
-        self.iconos_normal = {}
-        self.iconos_seleccion = {}
+        self.notas_tab = NotasFrame(
+            self.contenedor,
+            self.theme_manager
+        )
 
-        self.notebook.bind("<<NotebookTabChanged>>", self._al_cambiar_tab)
-        self.theme_manager.registrar(self._aplicar_tema)
+        self.calculadora_tab = CalculadoraFrame(
+            self.contenedor,
+            self.theme_manager
+        )
+
+        self.dibujo_tab = DibujoFrame(
+            self.contenedor,
+            self.theme_manager
+        )
+
+        self.contenidos = (
+            self.notas_tab,
+            self.calculadora_tab,
+            self.dibujo_tab
+        )
+
+        self._crear_tabs()
+
+        self.theme_manager.registrar(
+            self._aplicar_tema
+        )
+
+        self._seleccionar_tab(0)
 
     def _ajustar_escala_tk(self):
-        """Sincroniza el escalado interno de Tk con el DPI real del sistema."""
         try:
             dpi = self.winfo_fpixels("1i")
-            self.tk.call("tk", "scaling", dpi / 72.0)
+            self.tk.call(
+                "tk",
+                "scaling",
+                dpi / 72.0
+            )
         except Exception:
             pass
 
-    def _al_cambiar_tab(self, _event=None):
-        seleccionado = self.notebook.index(self.notebook.select())
+    def _crear_tabs(self):
+        for indice, (tipo, texto) in enumerate(self.TABS):
+
+            contenedor = tk.Frame(
+                self.barra_tabs
+            )
+
+            contenedor.pack(
+                side="left",
+                padx=(8 if indice == 0 else 0, 0)
+            )
+
+            boton = tk.Button(
+                contenedor,
+                text=texto,
+                font=("Arial", 10),
+                relief="flat",
+                bd=0,
+                highlightthickness=0,
+                cursor="hand2",
+                padx=14,
+                pady=10,
+                command=lambda i=indice:
+                    self._seleccionar_tab(i)
+            )
+
+            boton.pack()
+
+            indicador = tk.Frame(
+                contenedor,
+                height=2
+            )
+
+            indicador.pack(
+                fill="x",
+                side="bottom"
+            )
+
+            self.botones_tabs[tipo] = boton
+            self.indicadores_tabs[tipo] = indicador
+
+    def _seleccionar_tab(self, indice):
+        if indice < 0 or indice >= len(self.contenidos):
+            return
+
+        self.tab_actual = indice
+
+        for contenido in self.contenidos:
+            contenido.pack_forget()
+
+        self.contenidos[indice].pack(
+            fill="both",
+            expand=True
+        )
+
         p = self.theme_manager.paleta
-        self._animar_seleccion_tab(seleccionado, p["fg_suave"], p["accent"])
 
-    def _animar_seleccion_tab(self, seleccionado, color_inicio, color_fin, paso=0, pasos_totales=8):
-        t = (paso + 1) / pasos_totales
-        color_actual = mezclar_color(color_inicio, color_fin, t)
+        for i, (tipo, _) in enumerate(self.TABS):
 
-        for i, (tipo, _texto) in enumerate(self.TABS):
-            if i == seleccionado:
-                icono = crear_icono_tab(tipo, color_actual)
-                self.iconos_seleccion[tipo] = icono  # mantener referencia viva
+            boton = self.botones_tabs[tipo]
+            indicador = self.indicadores_tabs[tipo]
+
+            if i == indice:
+                boton.configure(
+                    bg=p["bg"],
+                    fg=p["accent"],
+                    activebackground=p["bg"],
+                    activeforeground=p["accent"]
+                )
+
+                indicador.configure(
+                    bg=p["accent"]
+                )
             else:
-                icono = self.iconos_normal[tipo]
-            self.notebook.tab(i, image=icono, compound="left")
+                boton.configure(
+                    bg=p["bg"],
+                    fg=p["fg_suave"],
+                    activebackground=p["bg"],
+                    activeforeground=p["fg"]
+                )
 
-        if paso < pasos_totales - 1:
-            self.after(12, lambda: self._animar_seleccion_tab(
-                seleccionado, color_inicio, color_fin, paso + 1, pasos_totales
-            ))
+                indicador.configure(
+                    bg=p["bg"]
+                )
 
     def _aplicar_tema(self, paleta):
-        self.configure(bg=paleta["bg"])
-        self.barra_superior.configure(bg=paleta["bg"])
-        self.label_titulo.configure(bg=paleta["bg"], fg=paleta["fg"])
-        self.switch_tema.configure(bg=paleta["bg"])
+        self.configure(
+            bg=paleta["bg"]
+        )
+
+        self.barra_superior.configure(
+            bg=paleta["bg"]
+        )
+
+        self.label_titulo.configure(
+            bg=paleta["bg"],
+            fg=paleta["fg"]
+        )
+
+        self.barra_tabs.configure(
+            bg=paleta["bg"]
+        )
+
+        self.contenedor.configure(
+            bg=paleta["bg"]
+        )
+
+        self.switch_tema.configure(
+            bg=paleta["bg"]
+        )
+
         self.switch_tema._bg_padre = paleta["bg"]
 
-        for tipo, _texto in self.TABS:
-            self.iconos_normal[tipo] = crear_icono_tab(tipo, paleta["fg_suave"])
-
-        self._al_cambiar_tab()
+        self._seleccionar_tab(
+            self.tab_actual
+        )
 
 
 if __name__ == "__main__":
