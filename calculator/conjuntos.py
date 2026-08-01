@@ -1,6 +1,6 @@
-﻿"""
-Modulo de teoria de conjuntos.
-Cada operacion devuelve (resultado, pasos).
+"""
+Módulo de teoría de conjuntos.
+Cada operación devuelve (resultado, pasos).
 """
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -23,39 +23,39 @@ def parsear_conjunto(texto):
 
 def formatear_conjunto(s):
     if not s:
-        return "vacio"
+        return "∅ (vacío)"
     return "{" + ", ".join(str(x) for x in sorted(s, key=str)) + "}"
 
 
 def union(A, B):
-    pasos = ["A union B: todos los elementos que estan en A, en B, o en ambos."]
+    pasos = ["A ∪ B: todos los elementos que están en A, en B, o en ambos (sin repetir)."]
     return A | B, pasos
 
 
 def interseccion(A, B):
-    pasos = ["A interseccion B: elementos que estan en A Y en B al mismo tiempo."]
+    pasos = ["A ∩ B: solo los elementos que están en A Y en B al mismo tiempo."]
     return A & B, pasos
 
 
 def diferencia(A, B):
-    pasos = ["A - B: elementos que estan en A pero NO estan en B."]
+    pasos = ["A - B: elementos que están en A pero NO están en B."]
     return A - B, pasos
 
 
 def complemento(A, U):
     if not U:
-        return None, ["Error: necesitas definir el conjunto universal U."]
+        return None, ["Error: necesitas definir el conjunto universal U para calcular el complemento."]
     if not A.issubset(U):
-        pasos = ["Advertencia: A tiene elementos que no estan en U, igual se calcula U - A."]
+        pasos = ["Advertencia: A tiene elementos que no están en U, igual se calcula U - A."]
     else:
-        pasos = ["A' = U - A: elementos del universo U que no estan en A."]
+        pasos = ["A' = U - A: elementos del universo U que no están en A."]
     return U - A, pasos
 
 
 def producto_cartesiano(A, B):
     pares = [(a, b) for a in sorted(A, key=str) for b in sorted(B, key=str)]
-    pasos = ["A x B: se forma un par (a, b) por cada combinacion de a en A con b en B."]
-    pasos.append(f"Total de pares: {len(A)} x {len(B)} = {len(pares)}")
+    pasos = [f"A × B: se forma un par (a, b) por cada combinación de a en A con b en B."]
+    pasos.append(f"Total de pares: {len(A)} × {len(B)} = {len(pares)}")
     return set(pares), pasos
 
 
@@ -83,10 +83,10 @@ class ConjuntosFrame(tk.Frame):
 
         op_frame = tk.Frame(self)
         op_frame.pack(fill="x", padx=10, pady=5)
-        tk.Label(op_frame, text="Operacion:").pack(side="left")
+        tk.Label(op_frame, text="Operación:").pack(side="left")
         self.combo_operacion = ttk.Combobox(
             op_frame, state="readonly",
-            values=["Union", "Interseccion", "Diferencia (A-B)", "Complemento (A')", "Producto cartesiano"]
+            values=["Unión", "Intersección", "Diferencia (A-B)", "Complemento (A')", "Producto cartesiano"]
         )
         self.combo_operacion.current(0)
         self.combo_operacion.pack(side="left", padx=5)
@@ -106,15 +106,15 @@ class ConjuntosFrame(tk.Frame):
         U = parsear_conjunto(self.entry_u.get())
         op = self.combo_operacion.get()
 
-        if op == "Union":
+        if op == "Unión":
             resultado, pasos = union(A, B)
-        elif op == "Interseccion":
+        elif op == "Intersección":
             resultado, pasos = interseccion(A, B)
         elif op == "Diferencia (A-B)":
             resultado, pasos = diferencia(A, B)
         elif op == "Complemento (A')":
             resultado, pasos = complemento(A, U)
-        else:
+        else:  # Producto cartesiano
             resultado, pasos = producto_cartesiano(A, B)
 
         self.text_resultado.delete("1.0", "end")
@@ -124,7 +124,7 @@ class ConjuntosFrame(tk.Frame):
             self.text_resultado.insert("1.0", "No se pudo calcular.")
         elif op == "Producto cartesiano":
             texto = "{" + ", ".join(f"({a}, {b})" for a, b in sorted(resultado, key=str)) + "}"
-            self.text_resultado.insert("1.0", texto if resultado else "vacio")
+            self.text_resultado.insert("1.0", texto if resultado else "∅ (vacío)")
         else:
             self.text_resultado.insert("1.0", formatear_conjunto(resultado))
         self.text_proceso.insert("1.0", "\n".join(pasos))

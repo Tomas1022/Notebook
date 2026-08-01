@@ -1,13 +1,14 @@
-﻿"""
-Modulo de algebra lineal: matrices.
-Cada funcion de calculo devuelve (resultado, pasos) donde pasos es una
-lista de strings explicando el proceso, para mostrarla en el area de texto.
+"""
+Módulo de álgebra lineal: matrices.
+Cada función de cálculo devuelve (resultado, pasos) donde 'pasos' es una
+lista de strings explicando el proceso, para mostrarla en el área de texto.
 """
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 
 def fmt(numero):
+    """Formatea un número: sin decimales si es entero, si no con 3 decimales."""
     if abs(numero - round(numero)) < 1e-9:
         return str(int(round(numero)))
     return f"{numero:.3f}"
@@ -17,12 +18,14 @@ def matriz_a_texto(m):
     return "\n".join("  ".join(fmt(v) for v in fila) for fila in m)
 
 
+# ---------- Operaciones ----------
+
 def sumar_restar(A, B, operacion):
     if len(A) != len(B) or len(A[0]) != len(B[0]):
         return None, ["Error: las matrices deben tener las mismas dimensiones."]
 
-    pasos = ["Sumando elemento por elemento (misma posicion en A y B):" if operacion == "+"
-             else "Restando elemento por elemento (misma posicion en A y B):"]
+    pasos = [f"Sumando elemento por elemento (misma posición en A y B):" if operacion == "+"
+            else "Restando elemento por elemento (misma posición en A y B):"]
     resultado = []
     for i in range(len(A)):
         fila = []
@@ -43,13 +46,13 @@ def multiplicar(A, B):
     filas_b, cols_b = len(B), len(B[0])
     if cols_a != filas_b:
         return None, [f"Error: no se puede multiplicar ({filas_a}x{cols_a}) por "
-                       f"({filas_b}x{cols_b}). Las columnas de A deben ser igual a las filas de B."]
+                    f"({filas_b}x{cols_b}). Las columnas de A deben ser igual a las filas de B."]
 
     pasos = ["Cada celda del resultado es el producto punto de una fila de A con una columna de B:"]
     resultado = [[0] * cols_b for _ in range(filas_a)]
     for i in range(filas_a):
         for j in range(cols_b):
-            terminos = [f"{fmt(A[i][k])}x{fmt(B[k][j])}" for k in range(cols_a)]
+            terminos = [f"{fmt(A[i][k])}×{fmt(B[k][j])}" for k in range(cols_a)]
             valor = sum(A[i][k] * B[k][j] for k in range(cols_a))
             resultado[i][j] = valor
             pasos.append(f"  R[{i+1}][{j+1}] = {' + '.join(terminos)} = {fmt(valor)}")
@@ -66,6 +69,7 @@ def transponer(A):
 
 
 def determinante(m, nivel=0):
+    """Determinante por expansión de cofactores. Devuelve (det, pasos)."""
     n = len(m)
     pasos = []
     sangria = "  " * nivel
@@ -75,12 +79,12 @@ def determinante(m, nivel=0):
 
     if n == 2:
         det = m[0][0] * m[1][1] - m[0][1] * m[1][0]
-        pasos.append(f"{sangria}Matriz 2x2 -> det = ({fmt(m[0][0])}x{fmt(m[1][1])}) - "
-                      f"({fmt(m[0][1])}x{fmt(m[1][0])}) = {fmt(det)}")
+        pasos.append(f"{sangria}Matriz 2x2 -> det = ({fmt(m[0][0])}×{fmt(m[1][1])}) - "
+                      f"({fmt(m[0][1])}×{fmt(m[1][0])}) = {fmt(det)}")
         return det, pasos
 
     det = 0
-    pasos.append(f"{sangria}Expansion por cofactores en la fila 1:")
+    pasos.append(f"{sangria}Expansión por cofactores en la fila 1:")
     for j in range(n):
         menor = [fila[:j] + fila[j + 1:] for fila in m[1:]]
         signo = 1 if j % 2 == 0 else -1
@@ -128,12 +132,15 @@ def inversa(m):
     return resultado, pasos
 
 
+# ---------- Interfaz ----------
+
 class MatricesFrame(tk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
         self.entries_a = []
         self.entries_b = []
 
+        # --- Configuración de tamaños ---
         config = tk.Frame(self)
         config.pack(fill="x", padx=10, pady=10)
 
@@ -153,6 +160,7 @@ class MatricesFrame(tk.Frame):
 
         tk.Button(config, text="Generar matrices", command=self.generar_matrices).grid(row=0, column=8, padx=10)
 
+        # --- Grillas de entrada ---
         grillas = tk.Frame(self)
         grillas.pack(fill="x", padx=10, pady=5)
 
@@ -164,19 +172,21 @@ class MatricesFrame(tk.Frame):
         self.frame_b = tk.Frame(grillas)
         self.frame_b.grid(row=1, column=1, padx=20)
 
+        # --- Operación ---
         op_frame = tk.Frame(self)
         op_frame.pack(fill="x", padx=10, pady=10)
 
-        tk.Label(op_frame, text="Operacion:").pack(side="left")
+        tk.Label(op_frame, text="Operación:").pack(side="left")
         self.combo_operacion = ttk.Combobox(
             op_frame, state="readonly",
-            values=["Suma", "Resta", "Multiplicacion", "Determinante", "Inversa", "Transpuesta"]
+            values=["Suma", "Resta", "Multiplicación", "Determinante", "Inversa", "Transpuesta"]
         )
         self.combo_operacion.current(0)
         self.combo_operacion.pack(side="left", padx=5)
 
         tk.Button(op_frame, text="Calcular", command=self.calcular).pack(side="left", padx=10)
 
+        # --- Resultado y proceso ---
         tk.Label(self, text="Resultado:").pack(anchor="w", padx=10)
         self.text_resultado = tk.Text(self, height=4, font=("Consolas", 11), bg="#f5f5f5")
         self.text_resultado.pack(fill="x", padx=10, pady=(0, 10))
@@ -216,7 +226,7 @@ class MatricesFrame(tk.Frame):
             if op in ("Suma", "Resta"):
                 B = self._leer_matriz(self.entries_b)
                 resultado, pasos = sumar_restar(A, B, "+" if op == "Suma" else "-")
-            elif op == "Multiplicacion":
+            elif op == "Multiplicación":
                 B = self._leer_matriz(self.entries_b)
                 resultado, pasos = multiplicar(A, B)
             elif op == "Determinante":
@@ -224,7 +234,7 @@ class MatricesFrame(tk.Frame):
                 resultado = [[det]]
             elif op == "Inversa":
                 resultado, pasos = inversa(A)
-            else:
+            else:  # Transpuesta
                 resultado, pasos = transponer(A)
 
             self.text_resultado.delete("1.0", "end")
@@ -237,4 +247,4 @@ class MatricesFrame(tk.Frame):
             self.text_proceso.insert("1.0", "\n".join(pasos))
 
         except ValueError:
-            messagebox.showerror("Error", "Verifica que todos los valores sean numeros.")
+            messagebox.showerror("Error", "Verifica que todos los valores sean números.")
