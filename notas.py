@@ -1,8 +1,9 @@
+##notas.py
+
 import json
 import os
 import tkinter as tk
 from tkinter import font as tkfont
-from tkinter import messagebox
 from tkinter import ttk
 
 ARCHIVO_NOTAS = "notas_guardadas.json"
@@ -13,41 +14,43 @@ TAMANOS_DISPONIBLES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32]
 class NotasFrame(tk.Frame):
     LAYOUTS = ["1", "2", "3", "4"]
 
-    def __init__(self, parent):
+    def __init__(self, parent, theme_manager):
         super().__init__(parent)
+        self.theme_manager = theme_manager
+        self.paleta = theme_manager.paleta
 
         self.layout_actual = "1"
         self.paneles = []
         self.pane_activo = None
-        self.tag_attrs = {}  # nombre_de_tag -> (tamano, negrita, cursiva, subrayado)
+        self.tag_attrs = {}
 
         self.tamano_actual = 11
         self.negrita_activa = False
         self.cursiva_activa = False
         self.subrayado_activa = False
 
-        # --- Menu superior tipo "Archivo" ---
-        menu_bar = tk.Frame(self, bg="#e0e0e0")
-        menu_bar.pack(fill="x")
+        # --- Menú superior tipo "Archivo" ---
+        self.menu_bar = tk.Frame(self)
+        self.menu_bar.pack(fill="x")
 
-        menubutton_archivo = tk.Menubutton(
-            menu_bar, text="Archivo", relief="flat", bg="#e0e0e0",
-            activebackground="#c0c0ff", padx=10, pady=4
+        self.menubutton_archivo = tk.Menubutton(
+            self.menu_bar, text="Archivo", relief="flat", padx=12, pady=6,
+            font=("Arial", 10)
         )
-        menubutton_archivo.pack(side="left")
+        self.menubutton_archivo.pack(side="left")
 
-        menu_archivo = tk.Menu(menubutton_archivo, tearoff=0)
+        menu_archivo = tk.Menu(self.menubutton_archivo, tearoff=0)
         menu_archivo.add_command(label="Guardar", command=self.guardar_notas)
         menu_archivo.add_command(label="Limpiar", command=self.limpiar_pane_activo)
         menu_archivo.add_separator()
 
         submenu_dividir = tk.Menu(menu_archivo, tearoff=0)
-        self.iconos_layout = {}  # hay que mantener referencias vivas o Tkinter las borra
+        self.iconos_layout = {}
         etiquetas = {
             "1": "1 panel",
             "2": "2 paneles (lado a lado)",
             "3": "3 paneles",
-            "4": "4 paneles (cuadricula)",
+            "4": "4 paneles (cuadrícula)",
         }
         for n in self.LAYOUTS:
             icono = self._generar_icono_layout(n)
@@ -57,67 +60,114 @@ class NotasFrame(tk.Frame):
                 command=lambda n=n: self.cambiar_layout(n)
             )
         menu_archivo.add_cascade(label="Dividir pantalla", menu=submenu_dividir)
+        self.menubutton_archivo.config(menu=menu_archivo)
+        self.menu_archivo = menu_archivo
+        self.submenu_dividir = submenu_dividir
 
-        menubutton_archivo.config(menu=menu_archivo)
-
-        self.label_estado = tk.Label(menu_bar, text="", fg="green", bg="#e0e0e0")
+        self.label_estado = tk.Label(self.menu_bar, text="", font=("Arial", 9, "bold"))
         self.label_estado.pack(side="left", padx=10)
 
-        # --- Barra de formato: tamano, negrita, cursiva, subrayado ---
-        barra_formato = tk.Frame(self)
-        barra_formato.pack(fill="x", padx=10, pady=(8, 8))
+        # --- Barra de formato ---
+        self.barra_formato = tk.Frame(self)
+        self.barra_formato.pack(fill="x", padx=12, pady=(10, 10))
 
-        tk.Label(barra_formato, text="Tamaño:").pack(side="left")
-        tk.Button(barra_formato, text="-", width=2, command=self.disminuir_tamano).pack(side="left", padx=(3, 0))
+        self.label_tamano = tk.Label(self.barra_formato, text="Tamaño", font=("Arial", 9))
+        self.label_tamano.pack(side="left")
+
+        self.btn_menos = self._crear_boton_plano(self.barra_formato, "−", self.disminuir_tamano, ancho=2)
+        self.btn_menos.pack(side="left", padx=(6, 0))
+
         self.combo_tamano = ttk.Combobox(
-            barra_formato, values=TAMANOS_DISPONIBLES, state="readonly", width=4
+            self.barra_formato, values=TAMANOS_DISPONIBLES, state="readonly", width=4
         )
         self.combo_tamano.set(self.tamano_actual)
-        self.combo_tamano.pack(side="left", padx=2)
+        self.combo_tamano.pack(side="left", padx=4)
         self.combo_tamano.bind("<<ComboboxSelected>>", self.cambiar_tamano)
-        tk.Button(barra_formato, text="+", width=2, command=self.aumentar_tamano).pack(side="left", padx=(0, 12))
 
-        self.btn_negrita = tk.Button(barra_formato, text="N", font=("Arial", 10, "bold"),
-                                      width=3, command=self.toggle_negrita)
+        self.btn_mas = self._crear_boton_plano(self.barra_formato, "+", self.aumentar_tamano, ancho=2)
+        self.btn_mas.pack(side="left", padx=(0, 14))
+
+        self.btn_negrita = self._crear_boton_plano(self.barra_formato, "N", self.toggle_negrita,
+                                                        fuente=("Arial", 10, "bold"))
         self.btn_negrita.pack(side="left", padx=2)
 
-        self.btn_cursiva = tk.Button(barra_formato, text="K", font=("Arial", 10, "italic"),
-                                      width=3, command=self.toggle_cursiva)
+        self.btn_cursiva = self._crear_boton_plano(self.barra_formato, "K", self.toggle_cursiva,
+                                                        fuente=("Arial", 10, "italic"))
         self.btn_cursiva.pack(side="left", padx=2)
 
-        self.btn_subrayado = tk.Button(barra_formato, text="S", font=("Arial", 10, "underline"),
-                                        width=3, command=self.toggle_subrayado)
+        self.btn_subrayado = self._crear_boton_plano(self.barra_formato, "S", self.toggle_subrayado,
+                                                        fuente=("Arial", 10, "underline"))
         self.btn_subrayado.pack(side="left", padx=2)
 
         # --- Contenedor de paneles de texto ---
         self.container = tk.Frame(self)
-        self.container.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.container.pack(fill="both", expand=True, padx=4, pady=(0, 4))
 
         self.cargar_notas()
+        self.theme_manager.registrar(self._aplicar_tema)
 
-    # ---------- Manejo de paneles ----------
+    def _crear_boton_plano(self, parent, texto, comando, ancho=3, fuente=("Arial", 10)):
+        btn = tk.Button(
+            parent, text=texto, width=ancho, font=fuente,
+            command=comando, relief="flat", bd=0, cursor="hand2",
+            activeforeground="#ffffff"
+        )
+        return btn
+
+    def _aplicar_tema(self, paleta):
+        self.paleta = paleta
+        p = paleta
+
+        self.configure(bg=p["bg"])
+        self.menu_bar.configure(bg=p["bg_secundario"])
+        self.menubutton_archivo.configure(bg=p["bg_secundario"], fg=p["fg"],
+                                        activebackground=p["accent_suave"], activeforeground=p["fg"])
+        self.menu_archivo.configure(bg=p["bg_secundario"], fg=p["fg"],
+                                        activebackground=p["accent"], activeforeground="#ffffff")
+        self.submenu_dividir.configure(bg=p["bg_secundario"], fg=p["fg"],
+                                        activebackground=p["accent"], activeforeground="#ffffff")
+        self.label_estado.configure(bg=p["bg_secundario"], fg=p["exito"])
+
+        self.barra_formato.configure(bg=p["bg"])
+        self.label_tamano.configure(bg=p["bg"], fg=p["fg_suave"])
+        self.container.configure(bg=p["bg"])
+
+        for btn in (self.btn_menos, self.btn_mas):
+            btn.configure(bg=p["bg_secundario"], fg=p["fg"], activebackground=p["accent_suave"])
+
+        self._actualizar_boton(self.btn_negrita, self.negrita_activa)
+        self._actualizar_boton(self.btn_cursiva, self.cursiva_activa)
+        self._actualizar_boton(self.btn_subrayado, self.subrayado_activa)
+
+        for panel in self.paneles:
+            self._pintar_panel(panel)
+
+    def _pintar_panel(self, panel):
+        p = self.paleta
+        panel.configure(
+            bg=p["bg_secundario"], fg=p["fg"],
+            insertbackground=p["fg"],
+            selectbackground=p["accent"], selectforeground="#ffffff",
+            highlightthickness=0, bd=0,
+        )
 
     def _generar_icono_layout(self, n):
-        """Crea una PhotoImage pequeña que representa el layout n (1,2,3,4) para el menu."""
         ANCHO, ALTO, M = 20, 14, 2
         img = tk.PhotoImage(width=ANCHO, height=ALTO)
         img.put("#888888", to=(0, 0, ANCHO, ALTO))
 
         if n == "1":
             img.put("white", to=(M, M, ANCHO - M, ALTO - M))
-
         elif n == "2":
             mitad = (ANCHO - M * 2) // 2
             img.put("white", to=(M, M, M + mitad - 1, ALTO - M))
             img.put("white", to=(M + mitad + 1, M, ANCHO - M, ALTO - M))
-
         elif n == "3":
             mitad_a = (ANCHO - M * 2) // 2
             mitad_h = (ALTO - M * 2) // 2
             img.put("white", to=(M, M, M + mitad_a - 1, ALTO - M))
             img.put("white", to=(M + mitad_a + 1, M, ANCHO - M, M + mitad_h - 1))
             img.put("white", to=(M + mitad_a + 1, M + mitad_h + 1, ANCHO - M, ALTO - M))
-
         else:
             mitad_a = (ANCHO - M * 2) // 2
             mitad_h = (ALTO - M * 2) // 2
@@ -126,13 +176,15 @@ class NotasFrame(tk.Frame):
                     x0 = M + col * (mitad_a + 1)
                     y0 = M + fila * (mitad_h + 1)
                     img.put("white", to=(x0, y0, x0 + mitad_a - 1, y0 + mitad_h - 1))
-
         return img
 
     def _crear_panel(self, parent):
-        t = tk.Text(parent, wrap="word", font=(FUENTE_BASE, self.tamano_actual), bd=1, relief="solid")
+        t = tk.Text(parent, wrap="word", font=(FUENTE_BASE, self.tamano_actual))
         t.bind("<FocusIn>", lambda e, widget=t: self._marcar_activo(widget))
         t.bind("<KeyRelease>", lambda e, widget=t: self._al_escribir(e, widget))
+        t.mark_set("ultimo_formato", "1.0")
+        t.mark_gravity("ultimo_formato", "left")
+        self._pintar_panel(t)
         return t
 
     def _marcar_activo(self, widget):
@@ -144,10 +196,17 @@ class NotasFrame(tk.Frame):
         attrs = (self.tamano_actual, self.negrita_activa, self.cursiva_activa, self.subrayado_activa)
         nombre_tag = self._asegurar_tag(pane, attrs)
         try:
+            fin = pane.index("insert")
+            marca_previa = pane.index("ultimo_formato")
+            # si el marcador quedo atras (escritura rapida), formateamos todo
+            # lo pendiente; si no, al menos el ultimo caracter escrito
+            inicio = marca_previa if pane.compare(marca_previa, "<", fin) else pane.index("insert-1c")
+
             for t in list(self.tag_attrs.keys()):
                 if t != nombre_tag:
-                    pane.tag_remove(t, "insert-1c", "insert")
-            pane.tag_add(nombre_tag, "insert-1c", "insert")
+                    pane.tag_remove(t, inicio, fin)
+            pane.tag_add(nombre_tag, inicio, fin)
+            pane.mark_set("ultimo_formato", fin)
         except tk.TclError:
             pass
 
@@ -171,7 +230,7 @@ class NotasFrame(tk.Frame):
             for c in range(2):
                 self.container.grid_columnconfigure(c, weight=1)
                 t = self._crear_panel(self.container)
-                t.grid(row=0, column=c, sticky="nsew", padx=2)
+                t.grid(row=0, column=c, sticky="nsew", padx=4)
                 self.paneles.append(t)
 
         elif n == "3":
@@ -181,11 +240,11 @@ class NotasFrame(tk.Frame):
             self.container.grid_columnconfigure(1, weight=1)
 
             t1 = self._crear_panel(self.container)
-            t1.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=2, pady=1)
+            t1.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=4, pady=2)
             t2 = self._crear_panel(self.container)
-            t2.grid(row=0, column=1, sticky="nsew", padx=2, pady=1)
+            t2.grid(row=0, column=1, sticky="nsew", padx=4, pady=2)
             t3 = self._crear_panel(self.container)
-            t3.grid(row=1, column=1, sticky="nsew", padx=2, pady=1)
+            t3.grid(row=1, column=1, sticky="nsew", padx=4, pady=2)
             self.paneles = [t1, t2, t3]
 
         else:
@@ -195,7 +254,7 @@ class NotasFrame(tk.Frame):
             self.container.grid_columnconfigure(1, weight=1)
             for i in range(4):
                 t = self._crear_panel(self.container)
-                t.grid(row=i // 2, column=i % 2, sticky="nsew", padx=2, pady=1)
+                t.grid(row=i // 2, column=i % 2, sticky="nsew", padx=4, pady=2)
                 self.paneles.append(t)
 
         contenidos = contenido_inicial if contenido_inicial is not None else contenidos_previos
@@ -204,8 +263,6 @@ class NotasFrame(tk.Frame):
                 t.insert("1.0", contenidos[i])
 
         self.pane_activo = self.paneles[0] if self.paneles else None
-
-    # ---------- Formato de texto (tamano, negrita, cursiva, subrayado) ----------
 
     def _asegurar_tag(self, pane, attrs):
         for nombre, valores in self.tag_attrs.items():
@@ -252,8 +309,10 @@ class NotasFrame(tk.Frame):
         pane.tag_add(nombre_tag, inicio, fin)
 
     def _actualizar_boton(self, boton, activo):
-        boton.config(relief="sunken" if activo else "raised",
-                     bg="#cce5ff" if activo else "SystemButtonFace")
+        p = self.paleta
+        boton.configure(bg=p["accent"] if activo else p["bg_secundario"],
+                            fg="#ffffff" if activo else p["fg"],
+                            activebackground=p["accent_hover"] if activo else p["accent_suave"])
 
     def toggle_negrita(self):
         pane = self.pane_activo
@@ -302,8 +361,6 @@ class NotasFrame(tk.Frame):
 
     def aumentar_tamano(self):
         self._cambiar_tamano_relativo(1)
-
-    # ---------- Guardar / cargar ----------
 
     def guardar_notas(self):
         contenidos = [p.get("1.0", "end-1c") for p in self.paneles]

@@ -1,14 +1,15 @@
+##matrices.py
+
 """
-Módulo de álgebra lineal: matrices.
-Cada función de cálculo devuelve (resultado, pasos) donde 'pasos' es una
-lista de strings explicando el proceso, para mostrarla en el área de texto.
+Modulo de algebra lineal: matrices.
+Cada funcion de calculo devuelve (resultado, pasos) donde pasos es una
+lista de strings explicando el proceso, para mostrarla en el area de texto.
 """
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox, ttk
 
 
 def fmt(numero):
-    """Formatea un número: sin decimales si es entero, si no con 3 decimales."""
     if abs(numero - round(numero)) < 1e-9:
         return str(int(round(numero)))
     return f"{numero:.3f}"
@@ -18,14 +19,12 @@ def matriz_a_texto(m):
     return "\n".join("  ".join(fmt(v) for v in fila) for fila in m)
 
 
-# ---------- Operaciones ----------
-
 def sumar_restar(A, B, operacion):
     if len(A) != len(B) or len(A[0]) != len(B[0]):
         return None, ["Error: las matrices deben tener las mismas dimensiones."]
 
-    pasos = [f"Sumando elemento por elemento (misma posición en A y B):" if operacion == "+"
-            else "Restando elemento por elemento (misma posición en A y B):"]
+    pasos = ["Sumando elemento por elemento (misma posicion en A y B):" if operacion == "+"
+             else "Restando elemento por elemento (misma posicion en A y B):"]
     resultado = []
     for i in range(len(A)):
         fila = []
@@ -46,13 +45,13 @@ def multiplicar(A, B):
     filas_b, cols_b = len(B), len(B[0])
     if cols_a != filas_b:
         return None, [f"Error: no se puede multiplicar ({filas_a}x{cols_a}) por "
-                    f"({filas_b}x{cols_b}). Las columnas de A deben ser igual a las filas de B."]
+                       f"({filas_b}x{cols_b}). Las columnas de A deben ser igual a las filas de B."]
 
     pasos = ["Cada celda del resultado es el producto punto de una fila de A con una columna de B:"]
     resultado = [[0] * cols_b for _ in range(filas_a)]
     for i in range(filas_a):
         for j in range(cols_b):
-            terminos = [f"{fmt(A[i][k])}×{fmt(B[k][j])}" for k in range(cols_a)]
+            terminos = [f"{fmt(A[i][k])}x{fmt(B[k][j])}" for k in range(cols_a)]
             valor = sum(A[i][k] * B[k][j] for k in range(cols_a))
             resultado[i][j] = valor
             pasos.append(f"  R[{i+1}][{j+1}] = {' + '.join(terminos)} = {fmt(valor)}")
@@ -69,7 +68,6 @@ def transponer(A):
 
 
 def determinante(m, nivel=0):
-    """Determinante por expansión de cofactores. Devuelve (det, pasos)."""
     n = len(m)
     pasos = []
     sangria = "  " * nivel
@@ -79,12 +77,12 @@ def determinante(m, nivel=0):
 
     if n == 2:
         det = m[0][0] * m[1][1] - m[0][1] * m[1][0]
-        pasos.append(f"{sangria}Matriz 2x2 -> det = ({fmt(m[0][0])}×{fmt(m[1][1])}) - "
-                      f"({fmt(m[0][1])}×{fmt(m[1][0])}) = {fmt(det)}")
+        pasos.append(f"{sangria}Matriz 2x2 -> det = ({fmt(m[0][0])}x{fmt(m[1][1])}) - "
+                      f"({fmt(m[0][1])}x{fmt(m[1][0])}) = {fmt(det)}")
         return det, pasos
 
     det = 0
-    pasos.append(f"{sangria}Expansión por cofactores en la fila 1:")
+    pasos.append(f"{sangria}Expansion por cofactores en la fila 1:")
     for j in range(n):
         menor = [fila[:j] + fila[j + 1:] for fila in m[1:]]
         signo = 1 if j % 2 == 0 else -1
@@ -132,74 +130,111 @@ def inversa(m):
     return resultado, pasos
 
 
-# ---------- Interfaz ----------
-
 class MatricesFrame(tk.Frame):
-    def __init__(self, parent):
+    def __init__(self, parent, theme_manager):
         super().__init__(parent)
+        self.theme_manager = theme_manager
         self.entries_a = []
         self.entries_b = []
 
-        # --- Configuración de tamaños ---
-        config = tk.Frame(self)
-        config.pack(fill="x", padx=10, pady=10)
+        self.config_frame = tk.Frame(self)
+        self.config_frame.pack(fill="x", padx=14, pady=14)
 
-        tk.Label(config, text="Matriz A: filas").grid(row=0, column=0)
-        self.filas_a = tk.Spinbox(config, from_=1, to=5, width=3)
+        self.label_a = tk.Label(self.config_frame, text="Matriz A: filas")
+        self.label_a.grid(row=0, column=0)
+        self.filas_a = tk.Spinbox(self.config_frame, from_=1, to=5, width=3)
         self.filas_a.grid(row=0, column=1)
-        tk.Label(config, text="cols").grid(row=0, column=2)
-        self.cols_a = tk.Spinbox(config, from_=1, to=5, width=3)
+        self.label_a2 = tk.Label(self.config_frame, text="cols")
+        self.label_a2.grid(row=0, column=2)
+        self.cols_a = tk.Spinbox(self.config_frame, from_=1, to=5, width=3)
         self.cols_a.grid(row=0, column=3)
 
-        tk.Label(config, text="   Matriz B: filas").grid(row=0, column=4)
-        self.filas_b = tk.Spinbox(config, from_=1, to=5, width=3)
+        self.label_b = tk.Label(self.config_frame, text="   Matriz B: filas")
+        self.label_b.grid(row=0, column=4)
+        self.filas_b = tk.Spinbox(self.config_frame, from_=1, to=5, width=3)
         self.filas_b.grid(row=0, column=5)
-        tk.Label(config, text="cols").grid(row=0, column=6)
-        self.cols_b = tk.Spinbox(config, from_=1, to=5, width=3)
+        self.label_b2 = tk.Label(self.config_frame, text="cols")
+        self.label_b2.grid(row=0, column=6)
+        self.cols_b = tk.Spinbox(self.config_frame, from_=1, to=5, width=3)
         self.cols_b.grid(row=0, column=7)
 
-        tk.Button(config, text="Generar matrices", command=self.generar_matrices).grid(row=0, column=8, padx=10)
+        self.btn_generar = tk.Button(self.config_frame, text="Generar matrices", relief="flat",
+                                      bd=0, cursor="hand2", command=self.generar_matrices)
+        self.btn_generar.grid(row=0, column=8, padx=14)
 
-        # --- Grillas de entrada ---
-        grillas = tk.Frame(self)
-        grillas.pack(fill="x", padx=10, pady=5)
+        self.grillas = tk.Frame(self)
+        self.grillas.pack(fill="x", padx=14, pady=5)
 
-        tk.Label(grillas, text="Matriz A").grid(row=0, column=0)
-        self.frame_a = tk.Frame(grillas)
+        self.label_titulo_a = tk.Label(self.grillas, text="Matriz A")
+        self.label_titulo_a.grid(row=0, column=0)
+        self.frame_a = tk.Frame(self.grillas)
         self.frame_a.grid(row=1, column=0, padx=20)
 
-        tk.Label(grillas, text="Matriz B").grid(row=0, column=1)
-        self.frame_b = tk.Frame(grillas)
+        self.label_titulo_b = tk.Label(self.grillas, text="Matriz B")
+        self.label_titulo_b.grid(row=0, column=1)
+        self.frame_b = tk.Frame(self.grillas)
         self.frame_b.grid(row=1, column=1, padx=20)
 
-        # --- Operación ---
-        op_frame = tk.Frame(self)
-        op_frame.pack(fill="x", padx=10, pady=10)
+        self.op_frame = tk.Frame(self)
+        self.op_frame.pack(fill="x", padx=14, pady=14)
 
-        tk.Label(op_frame, text="Operación:").pack(side="left")
+        self.label_operacion = tk.Label(self.op_frame, text="Operacion:")
+        self.label_operacion.pack(side="left")
         self.combo_operacion = ttk.Combobox(
-            op_frame, state="readonly",
-            values=["Suma", "Resta", "Multiplicación", "Determinante", "Inversa", "Transpuesta"]
+            self.op_frame, state="readonly",
+            values=["Suma", "Resta", "Multiplicacion", "Determinante", "Inversa", "Transpuesta"]
         )
         self.combo_operacion.current(0)
         self.combo_operacion.pack(side="left", padx=5)
 
-        tk.Button(op_frame, text="Calcular", command=self.calcular).pack(side="left", padx=10)
+        self.btn_calcular = tk.Button(self.op_frame, text="Calcular", relief="flat", bd=0,
+                                       cursor="hand2", command=self.calcular)
+        self.btn_calcular.pack(side="left", padx=10)
 
-        # --- Resultado y proceso ---
-        tk.Label(self, text="Resultado:").pack(anchor="w", padx=10)
-        self.text_resultado = tk.Text(self, height=4, font=("Consolas", 11), bg="#f5f5f5")
-        self.text_resultado.pack(fill="x", padx=10, pady=(0, 10))
+        self.label_resultado = tk.Label(self, text="Resultado:")
+        self.label_resultado.pack(anchor="w", padx=14)
+        self.text_resultado = tk.Text(self, height=4, font=("Consolas", 11), bd=0)
+        self.text_resultado.pack(fill="x", padx=14, pady=(0, 10))
 
-        tk.Label(self, text="Proceso:").pack(anchor="w", padx=10)
-        self.text_proceso = tk.Text(self, font=("Consolas", 10), bg="white")
-        self.text_proceso.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.label_proceso = tk.Label(self, text="Proceso:")
+        self.label_proceso.pack(anchor="w", padx=14)
+        self.text_proceso = tk.Text(self, font=("Consolas", 10), bd=0)
+        self.text_proceso.pack(fill="both", expand=True, padx=14, pady=(0, 14))
 
         self.generar_matrices()
+        theme_manager.registrar(self._aplicar_tema)
+
+    def _aplicar_tema(self, paleta):
+        self.paleta = paleta
+        p = paleta
+
+        for frame in (self, self.config_frame, self.grillas, self.frame_a, self.frame_b, self.op_frame):
+            frame.configure(bg=p["bg"])
+
+        for label in (self.label_a, self.label_a2, self.label_b, self.label_b2,
+                      self.label_titulo_a, self.label_titulo_b, self.label_operacion,
+                      self.label_resultado, self.label_proceso):
+            label.configure(bg=p["bg"], fg=p["fg"])
+
+        for btn in (self.btn_generar, self.btn_calcular):
+            btn.configure(bg=p["accent"], fg="#ffffff", activebackground=p["accent_hover"])
+
+        for text_widget in (self.text_resultado, self.text_proceso):
+            text_widget.configure(bg=p["bg_secundario"], fg=p["fg"], insertbackground=p["fg"],
+                                   highlightthickness=1, highlightbackground=p["borde"],
+                                   highlightcolor=p["accent"])
+
+        for lista_entries in (self.entries_a, self.entries_b):
+            for fila in lista_entries:
+                for e in fila:
+                    e.configure(bg=p["bg_secundario"], fg=p["fg"], insertbackground=p["fg"],
+                                highlightthickness=1, highlightbackground=p["borde"])
 
     def generar_matrices(self):
         self.entries_a = self._crear_grid(self.frame_a, int(self.filas_a.get()), int(self.cols_a.get()))
         self.entries_b = self._crear_grid(self.frame_b, int(self.filas_b.get()), int(self.cols_b.get()))
+        if hasattr(self, "paleta"):
+            self._aplicar_tema(self.paleta)
 
     def _crear_grid(self, frame, filas, cols):
         for widget in frame.winfo_children():
@@ -208,7 +243,7 @@ class MatricesFrame(tk.Frame):
         for i in range(filas):
             fila_entries = []
             for j in range(cols):
-                e = tk.Entry(frame, width=6, justify="center")
+                e = tk.Entry(frame, width=6, justify="center", bd=0, relief="flat")
                 e.insert(0, "0")
                 e.grid(row=i, column=j, padx=2, pady=2)
                 fila_entries.append(e)
@@ -226,7 +261,7 @@ class MatricesFrame(tk.Frame):
             if op in ("Suma", "Resta"):
                 B = self._leer_matriz(self.entries_b)
                 resultado, pasos = sumar_restar(A, B, "+" if op == "Suma" else "-")
-            elif op == "Multiplicación":
+            elif op == "Multiplicacion":
                 B = self._leer_matriz(self.entries_b)
                 resultado, pasos = multiplicar(A, B)
             elif op == "Determinante":
@@ -234,7 +269,7 @@ class MatricesFrame(tk.Frame):
                 resultado = [[det]]
             elif op == "Inversa":
                 resultado, pasos = inversa(A)
-            else:  # Transpuesta
+            else:
                 resultado, pasos = transponer(A)
 
             self.text_resultado.delete("1.0", "end")
@@ -247,4 +282,4 @@ class MatricesFrame(tk.Frame):
             self.text_proceso.insert("1.0", "\n".join(pasos))
 
         except ValueError:
-            messagebox.showerror("Error", "Verifica que todos los valores sean números.")
+            messagebox.showerror("Error", "Verifica que todos los valores sean numeros.")
