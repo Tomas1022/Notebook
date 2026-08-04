@@ -8,14 +8,43 @@ Patron usado: "observador" (observer pattern).
   suscritos, pasandoles la nueva paleta para que se repinten.
 """
 
+import sys
 import tkinter as tk
 from tkinter import ttk
 
 
 # ==========================================================
-# PALETAS
+# DETECCION DEL TEMA DEL SISTEMA (Windows)
 # ==========================================================
 
+def detectar_tema_sistema():
+        """
+        Revisa el registro de Windows para saber si el usuario tiene
+        modo oscuro o claro configurado a nivel de sistema.
+
+        Devuelve "dark" o "light". Si no es Windows, o si algo falla
+        al leer el registro, cae por defecto en "light".
+        """
+
+        if sys.platform == "win32":
+
+            try:
+                import winreg
+
+                clave = winreg.OpenKey(
+                    winreg.HKEY_CURRENT_USER,
+                    r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+                )
+
+                valor, _ = winreg.QueryValueEx(clave, "AppsUseLightTheme")
+                winreg.CloseKey(clave)
+
+                return "light" if valor == 1 else "dark"
+
+            except (FileNotFoundError, OSError):
+                pass
+
+        return "light"
 PALETAS = {
     "light": {
         "bg": "#f5f7fa",
@@ -46,16 +75,11 @@ PALETAS = {
     },
 }
 
-
-# ==========================================================
-# THEME MANAGER
-# ==========================================================
-
 class ThemeManager:
 
     def __init__(self):
 
-        self.modo = "light"
+        self.modo = detectar_tema_sistema()
         self._listeners = []
 
         self._style = ttk.Style()
@@ -69,17 +93,9 @@ class ThemeManager:
 
         self._configurar_estilos_ttk()
 
-    # ======================================================
-    # PALETA ACTUAL
-    # ======================================================
-
     @property
     def paleta(self):
         return PALETAS[self.modo]
-
-    # ======================================================
-    # OBSERVER
-    # ======================================================
 
     def registrar(self, callback):
         """
@@ -92,10 +108,6 @@ class ThemeManager:
         self._listeners.append(callback)
 
         callback(self.paleta)
-
-    # ======================================================
-    # CAMBIAR TEMA
-    # ======================================================
 
     def alternar(self):
 
@@ -157,10 +169,6 @@ class ThemeManager:
             ]
         )
 
-        # ==================================================
-        # COMBOBOX
-        # ==================================================
-
         s.configure(
             "TCombobox",
             fieldbackground=p["bg_secundario"],
@@ -184,11 +192,6 @@ class ThemeManager:
                 ("readonly", p["fg"])
             ]
         )
-
-
-# ==========================================================
-# MEZCLAR COLORES
-# ==========================================================
 
 def mezclar_color(color1, color2, t):
     """
@@ -215,10 +218,6 @@ def mezclar_color(color1, color2, t):
 
     return f"#{r:02x}{g:02x}{b:02x}"
 
-
-# ==========================================================
-# ICONOS DE LAS TABS
-# ==========================================================
 
 def _mapa_icono_tab(tipo):
     """
@@ -252,10 +251,6 @@ def _mapa_icono_tab(tipo):
                 if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
                     grid[y][x] = 1
 
-    # ------------------------------------------------------
-    # NOTAS
-    # ------------------------------------------------------
-
     if tipo == "notas":
 
         rect(3, 2, 13, 3)
@@ -267,10 +262,6 @@ def _mapa_icono_tab(tipo):
         rect(5, 5, 11, 6)
         rect(5, 8, 11, 9)
         rect(5, 11, 11, 12)
-
-    # ------------------------------------------------------
-    # CALCULADORA
-    # ------------------------------------------------------
 
     elif tipo == "calculadora":
 
@@ -290,10 +281,6 @@ def _mapa_icono_tab(tipo):
                     y0 + 2
                 )
 
-    # ------------------------------------------------------
-    # DIBUJO
-    # ------------------------------------------------------
-
     else:
 
         for i in range(8):
@@ -312,11 +299,6 @@ def _mapa_icono_tab(tipo):
         )
 
     return grid
-
-
-# ==========================================================
-# CREAR ICONO
-# ==========================================================
 
 def crear_icono_tab(
     tipo,
@@ -380,9 +362,6 @@ def crear_icono_tab(
     return img
 
 
-# ==========================================================
-# SWITCH DE TEMA
-# ==========================================================
 
 class ThemeSwitch(tk.Canvas):
     """
@@ -442,10 +421,6 @@ class ThemeSwitch(tk.Canvas):
             self._al_cambiar_tema
         )
 
-    # ======================================================
-    # CAMBIO DE TEMA
-    # ======================================================
-
     def _al_cambiar_tema(self, paleta):
 
         self.paleta = paleta
@@ -462,20 +437,12 @@ class ThemeSwitch(tk.Canvas):
                 objetivo
             )
 
-    # ======================================================
-    # CLICK
-    # ======================================================
-
     def _on_click(self, _event):
 
         if self.animando:
             return
 
         self.theme_manager.alternar()
-
-    # ======================================================
-    # ANIMACIÓN
-    # ======================================================
 
     def _animar(
         self,
@@ -513,10 +480,6 @@ class ThemeSwitch(tk.Canvas):
             self._dibujar()
 
             self.animando = False
-
-    # ======================================================
-    # DIBUJAR SWITCH
-    # ======================================================
 
     def _dibujar(self):
 

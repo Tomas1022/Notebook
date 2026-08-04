@@ -6,11 +6,8 @@ from typing import ClassVar
 
 from calculator.conjuntos import ConjuntosFrame
 from calculator.matrices import MatricesFrame
+from calculator.calculo import CalculoFrame
 
-
-# ==========================================================
-# EVALUADOR MATEMÁTICO SEGURO
-# ==========================================================
 
 class EvaluadorMatematico:
     """
@@ -70,10 +67,6 @@ class EvaluadorMatematico:
     @classmethod
     def _evaluar_nodo(cls, nodo):
 
-        # --------------------------------------------------
-        # NÚMEROS
-        # --------------------------------------------------
-
         if isinstance(nodo, ast.Constant):
 
             if isinstance(
@@ -85,10 +78,6 @@ class EvaluadorMatematico:
             raise ValueError(
                 "Valor no permitido."
             )
-
-        # --------------------------------------------------
-        # OPERACIONES
-        # --------------------------------------------------
 
         if isinstance(nodo, ast.BinOp):
 
@@ -123,10 +112,6 @@ class EvaluadorMatematico:
                 derecho
             )
 
-        # --------------------------------------------------
-        # NÚMEROS POSITIVOS / NEGATIVOS
-        # --------------------------------------------------
-
         if isinstance(nodo, ast.UnaryOp):
 
             operador = cls.OPERADORES.get(
@@ -147,11 +132,6 @@ class EvaluadorMatematico:
         raise ValueError(
             "Operación no permitida."
         )
-
-
-# ==========================================================
-# CALCULADORA BÁSICA
-# ==========================================================
 
 class BasicaFrame(tk.Frame):
     """
@@ -183,10 +163,6 @@ class BasicaFrame(tk.Frame):
         self.theme_manager = theme_manager
         self.expresion = ""
 
-        # ==================================================
-        # DISPLAY
-        # ==================================================
-
         self.display = tk.Entry(
             self,
             font=("Arial", 22),
@@ -202,10 +178,6 @@ class BasicaFrame(tk.Frame):
             ipady=14
         )
 
-        # ==================================================
-        # CONTENEDOR DE BOTONES
-        # ==================================================
-
         self.botones_frame = tk.Frame(
             self
         )
@@ -215,20 +187,12 @@ class BasicaFrame(tk.Frame):
             pady=12
         )
 
-        # ==================================================
-        # COLUMNAS
-        # ==================================================
-
         for columna in range(4):
 
             self.botones_frame.grid_columnconfigure(
                 columna,
                 weight=1
             )
-
-        # ==================================================
-        # BOTONES
-        # ==================================================
 
         botones = [
             ("C", "⌫", "(", ")"),
@@ -274,15 +238,7 @@ class BasicaFrame(tk.Frame):
                     (btn, texto)
                 )
 
-        # ==================================================
-        # TECLADO
-        # ==================================================
-
         self._configurar_teclado()
-
-        # ==================================================
-        # TEMA
-        # ==================================================
 
         theme_manager.registrar(
             self._aplicar_tema
@@ -293,11 +249,19 @@ class BasicaFrame(tk.Frame):
             self._enfocar_display
         )
 
-    # ======================================================
-    # CONFIGURAR TECLADO
-    # ======================================================
-
     def _configurar_teclado(self):
+
+        self.display.bind(
+            "<FocusIn>",
+            self._activar_teclado
+        )
+
+        self.display.bind(
+            "<FocusOut>",
+            self._desactivar_teclado
+        )
+
+    def _activar_teclado(self, event=None):
 
         self.bind_all(
             "<Key>",
@@ -329,9 +293,14 @@ class BasicaFrame(tk.Frame):
             self._tecla_delete
         )
 
-    # ======================================================
-    # TECLAS NORMALES
-    # ======================================================
+    def _desactivar_teclado(self, event=None):
+
+        self.unbind_all("<Key>")
+        self.unbind_all("<Return>")
+        self.unbind_all("<KP_Enter>")
+        self.unbind_all("<Escape>")
+        self.unbind_all("<BackSpace>")
+        self.unbind_all("<Delete>")
 
     def _tecla_presionada(self, event):
 
@@ -370,19 +339,11 @@ class BasicaFrame(tk.Frame):
 
         return None
 
-    # ======================================================
-    # ENTER
-    # ======================================================
-
     def _tecla_enter(self, event=None):
 
         self.click_boton("=")
 
         return "break"
-
-    # ======================================================
-    # ESCAPE
-    # ======================================================
 
     def _tecla_escape(self, event=None):
 
@@ -390,29 +351,17 @@ class BasicaFrame(tk.Frame):
 
         return "break"
 
-    # ======================================================
-    # BACKSPACE
-    # ======================================================
-
     def _tecla_backspace(self, event=None):
 
         self.click_boton("⌫")
 
         return "break"
 
-    # ======================================================
-    # DELETE
-    # ======================================================
-
     def _tecla_delete(self, event=None):
 
         self.click_boton("C")
 
         return "break"
-
-    # ======================================================
-    # AGREGAR CARÁCTER
-    # ======================================================
 
     def _agregar(self, caracter):
 
@@ -424,62 +373,27 @@ class BasicaFrame(tk.Frame):
 
         self._actualizar_display()
 
-    # ======================================================
-    # BOTONES
-    # ======================================================
-
     def click_boton(self, texto):
 
-        # --------------------------------------------------
-        # LIMPIAR
-        # --------------------------------------------------
-
         if texto == "C":
-
             self.expresion = ""
 
-        # --------------------------------------------------
-        # BORRAR ÚLTIMO CARÁCTER
-        # --------------------------------------------------
-
         elif texto == "⌫":
-
             self.expresion = (
                 self.expresion[:-1]
             )
 
-        # --------------------------------------------------
-        # CALCULAR
-        # --------------------------------------------------
-
         elif texto == "=":
-
             self._calcular()
-
             return
 
-        # --------------------------------------------------
-        # CAMBIAR SIGNO
-        # --------------------------------------------------
-
         elif texto == "±":
-
             self._cambiar_signo()
-
-        # --------------------------------------------------
-        # PORCENTAJE
-        # --------------------------------------------------
-
         elif texto == "%":
 
             self._porcentaje()
 
-        # --------------------------------------------------
-        # OTROS BOTONES
-        # --------------------------------------------------
-
         else:
-
             self._agregar(
                 texto
             )
@@ -487,10 +401,6 @@ class BasicaFrame(tk.Frame):
             return
 
         self._actualizar_display()
-
-    # ======================================================
-    # CALCULAR
-    # ======================================================
 
     def _calcular(self):
 
@@ -519,10 +429,6 @@ class BasicaFrame(tk.Frame):
 
         self._actualizar_display()
 
-    # ======================================================
-    # FORMATEAR RESULTADO
-    # ======================================================
-
     def _formatear_resultado(
         self,
         resultado
@@ -542,10 +448,6 @@ class BasicaFrame(tk.Frame):
             return f"{resultado:.10g}"
 
         return str(resultado)
-
-    # ======================================================
-    # CAMBIAR SIGNO
-    # ======================================================
 
     def _cambiar_signo(self):
 
@@ -640,10 +542,6 @@ class BasicaFrame(tk.Frame):
             + reemplazo
         )
 
-    # ======================================================
-    # ACTUALIZAR DISPLAY
-    # ======================================================
-
     def _actualizar_display(self):
 
         self.display.delete(
@@ -659,11 +557,6 @@ class BasicaFrame(tk.Frame):
         self.display.icursor(
             "end"
         )
-
-    # ======================================================
-    # ENFOCAR DISPLAY
-    # ======================================================
-
     def _enfocar_display(self):
 
         try:
@@ -673,10 +566,6 @@ class BasicaFrame(tk.Frame):
         except tk.TclError:
 
             pass
-
-    # ======================================================
-    # TEMA
-    # ======================================================
 
     def _aplicar_tema(
         self,
@@ -704,10 +593,6 @@ class BasicaFrame(tk.Frame):
 
         for btn, texto in self.botones:
 
-            # ==================================================
-            # IGUAL
-            # ==================================================
-
             if texto == "=":
 
                 btn.configure(
@@ -717,9 +602,6 @@ class BasicaFrame(tk.Frame):
                     activeforeground="#ffffff"
                 )
 
-            # ==================================================
-            # OPERADORES
-            # ==================================================
 
             elif texto in (
                 "/",
@@ -741,9 +623,6 @@ class BasicaFrame(tk.Frame):
                     activeforeground=p["accent"]
                 )
 
-            # ==================================================
-            # NÚMEROS
-            # ==================================================
 
             else:
 
@@ -755,9 +634,6 @@ class BasicaFrame(tk.Frame):
                 )
 
 
-# ==========================================================
-# CALCULADORA PRINCIPAL
-# ==========================================================
 
 class CalculadoraFrame(tk.Frame):
     """
@@ -775,6 +651,7 @@ class CalculadoraFrame(tk.Frame):
         ("basica", "Básica"),
         ("matrices", "Matrices"),
         ("conjuntos", "Conjuntos"),
+        ("calculo", "Cálculo"),
     )
 
     def __init__(
@@ -789,9 +666,6 @@ class CalculadoraFrame(tk.Frame):
 
         self.tab_actual = 0
 
-        # ==================================================
-        # BARRA DE PESTAÑAS
-        # ==================================================
 
         self.barra_tabs = tk.Frame(
             self
@@ -805,10 +679,6 @@ class CalculadoraFrame(tk.Frame):
         self.botones_tabs = {}
         self.indicadores_tabs = {}
 
-        # ==================================================
-        # CONTENEDOR
-        # ==================================================
-
         self.contenedor = tk.Frame(
             self
         )
@@ -818,9 +688,6 @@ class CalculadoraFrame(tk.Frame):
             expand=True
         )
 
-        # ==================================================
-        # FRAMES
-        # ==================================================
 
         self.basica_tab = BasicaFrame(
             self.contenedor,
@@ -836,16 +703,18 @@ class CalculadoraFrame(tk.Frame):
             self.contenedor,
             theme_manager
         )
+        self.calculo_tab = CalculoFrame(
+            self.contenedor,
+            theme_manager
+        )
 
         self.contenidos = [
             self.basica_tab,
             self.matrices_tab,
-            self.conjuntos_tab
+            self.conjuntos_tab,
+            self.calculo_tab
         ]
 
-        # ==================================================
-        # CREAR PESTAÑAS
-        # ==================================================
 
         for indice, (tipo, texto) in enumerate(
             self.TABS
@@ -896,10 +765,7 @@ class CalculadoraFrame(tk.Frame):
             self.botones_tabs[tipo] = boton
             self.indicadores_tabs[tipo] = indicador
 
-        # ==================================================
-        # TEMA
-        # ==================================================
-
+ 
         theme_manager.registrar(
             self._aplicar_tema
         )
@@ -908,10 +774,7 @@ class CalculadoraFrame(tk.Frame):
             0
         )
 
-    # ======================================================
-    # SELECCIONAR PESTAÑA
-    # ======================================================
-
+ 
     def _seleccionar_tab(
         self,
         indice
@@ -974,9 +837,6 @@ class CalculadoraFrame(tk.Frame):
                     bg=p["bg"]
                 )
 
-    # ======================================================
-    # TEMA
-    # ======================================================
 
     def _aplicar_tema(
         self,
