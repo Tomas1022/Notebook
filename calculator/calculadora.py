@@ -1,171 +1,28 @@
-import ast
-import math
-import operator
 import tkinter as tk
-from typing import ClassVar
 
 from calculator.conjuntos import ConjuntosFrame
 from calculator.matrices import MatricesFrame
 from calculator.calculo import CalculoFrame
+from calculator.historial import HistorialManager
 
-
-class EvaluadorMatematico:
-    """
-    Evaluador limitado para operaciones matemáticas.
-
-    Operaciones permitidas:
-        +
-        -
-        *
-        /
-        %
-        **
-        paréntesis
-        números decimales
-    """
-
-    OPERADORES: ClassVar[dict[type[ast.operator], object]] = {
-        ast.Add: operator.add,
-        ast.Sub: operator.sub,
-        ast.Mult: operator.mul,
-        ast.Div: operator.truediv,
-        ast.Mod: operator.mod,
-        ast.Pow: operator.pow,
-        ast.USub: operator.neg,
-        ast.UAdd: operator.pos,
-    }
-
-    @classmethod
-    def evaluar(cls, expresion):
-        expresion = expresion.strip()
-
-        if not expresion:
-            return ""
-
-        # Evitar expresiones excesivamente grandes
-        if len(expresion) > 200:
-            raise ValueError("Expresión demasiado larga.")
-
-        try:
-            arbol = ast.parse(
-                expresion,
-                mode="eval"
-            )
-
-            resultado = cls._evaluar_nodo(
-                arbol.body
-            )
-
-            if not math.isfinite(resultado):
-                raise ValueError("Resultado no válido.")
-
-            return resultado
-
-        except SyntaxError:
-            raise ValueError("Expresión inválida.")
-
-    @classmethod
-    def _evaluar_nodo(cls, nodo):
-
-        if isinstance(nodo, ast.Constant):
-
-            if isinstance(
-                nodo.value,
-                (int, float)
-            ):
-                return nodo.value
-
-            raise ValueError(
-                "Valor no permitido."
-            )
-
-        if isinstance(nodo, ast.BinOp):
-
-            operador = cls.OPERADORES.get(
-                type(nodo.op)
-            )
-
-            if operador is None:
-                raise ValueError(
-                    "Operador no permitido."
-                )
-
-            izquierdo = cls._evaluar_nodo(
-                nodo.left
-            )
-
-            derecho = cls._evaluar_nodo(
-                nodo.right
-            )
-
-            # Evitar exponentes exagerados
-            if (
-                isinstance(nodo.op, ast.Pow)
-                and abs(derecho) > 100
-            ):
-                raise ValueError(
-                    "Exponente demasiado grande."
-                )
-
-            return operador(
-                izquierdo,
-                derecho
-            )
-
-        if isinstance(nodo, ast.UnaryOp):
-
-            operador = cls.OPERADORES.get(
-                type(nodo.op)
-            )
-
-            if operador is None:
-                raise ValueError(
-                    "Operador no permitido."
-                )
-
-            valor = cls._evaluar_nodo(
-                nodo.operand
-            )
-
-            return operador(valor)
-
-        raise ValueError(
-            "Operación no permitida."
-        )
 
 class BasicaFrame(tk.Frame):
-    """
-    Calculadora básica.
-
-    Soporta:
-
-        + - * / %
-        paréntesis
-        decimales
-        cambio de signo
-        borrar carácter
-        limpiar
-        teclado físico
-        Enter
-        Escape
-        Backspace
-        Delete
-    """
 
     def __init__(
         self,
         parent,
-        theme_manager
+        theme_manager,
+        historial
     ):
-
         super().__init__(parent)
 
         self.theme_manager = theme_manager
+        self.historial = historial
         self.expresion = ""
 
         self.display = tk.Entry(
             self,
-            font=("Arial", 22),
+            font=("Arial", 20),
             justify="right",
             bd=0,
             relief="flat"
@@ -173,34 +30,23 @@ class BasicaFrame(tk.Frame):
 
         self.display.pack(
             fill="x",
-            padx=24,
-            pady=(24, 12),
-            ipady=14
+            padx=14,
+            pady=14,
+            ipady=12
         )
 
-        self.botones_frame = tk.Frame(
-            self
-        )
+        self.botones_frame = tk.Frame(self)
 
         self.botones_frame.pack(
-            padx=24,
-            pady=12
+            padx=14,
+            pady=10
         )
 
-        for columna in range(4):
-
-            self.botones_frame.grid_columnconfigure(
-                columna,
-                weight=1
-            )
-
         botones = [
-            ("C", "⌫", "(", ")"),
             ("7", "8", "9", "/"),
             ("4", "5", "6", "*"),
             ("1", "2", "3", "-"),
-            ("±", "0", ".", "+"),
-            ("%", "", "=", ""),
+            ("C", "0", "=", "+")
         ]
 
         self.botones = []
@@ -208,9 +54,6 @@ class BasicaFrame(tk.Frame):
         for fila_idx, fila in enumerate(botones):
 
             for col_idx, texto in enumerate(fila):
-
-                if texto == "":
-                    continue
 
                 btn = tk.Button(
                     self.botones_frame,
@@ -220,327 +63,139 @@ class BasicaFrame(tk.Frame):
                     font=("Arial", 14),
                     relief="flat",
                     bd=0,
-                    highlightthickness=0,
                     cursor="hand2",
                     command=lambda t=texto:
-                        self.click_boton(t)
+                    self.click_boton(t)
                 )
 
                 btn.grid(
                     row=fila_idx,
                     column=col_idx,
-                    padx=4,
-                    pady=4,
-                    sticky="nsew"
+                    padx=3,
+                    pady=3
                 )
 
                 self.botones.append(
                     (btn, texto)
                 )
 
-        self._configurar_teclado()
+        self.bind_all(
+            "<Key>",
+            self._teclado
+        )
 
         theme_manager.registrar(
             self._aplicar_tema
         )
 
-        self.after(
-            100,
-            self._enfocar_display
-        )
+    def _teclado(self, event):
 
-    def _configurar_teclado(self):
-
-        self.display.bind(
-            "<FocusIn>",
-            self._activar_teclado
-        )
-
-        self.display.bind(
-            "<FocusOut>",
-            self._desactivar_teclado
-        )
-
-    def _activar_teclado(self, event=None):
-
-        self.bind_all(
-            "<Key>",
-            self._tecla_presionada
-        )
-
-        self.bind_all(
-            "<Return>",
-            self._tecla_enter
-        )
-
-        self.bind_all(
-            "<KP_Enter>",
-            self._tecla_enter
-        )
-
-        self.bind_all(
-            "<Escape>",
-            self._tecla_escape
-        )
-
-        self.bind_all(
-            "<BackSpace>",
-            self._tecla_backspace
-        )
-
-        self.bind_all(
-            "<Delete>",
-            self._tecla_delete
-        )
-
-    def _desactivar_teclado(self, event=None):
-
-        self.unbind_all("<Key>")
-        self.unbind_all("<Return>")
-        self.unbind_all("<KP_Enter>")
-        self.unbind_all("<Escape>")
-        self.unbind_all("<BackSpace>")
-        self.unbind_all("<Delete>")
-
-    def _tecla_presionada(self, event):
+        if not self.winfo_ismapped():
+            return
 
         tecla = event.keysym
-        caracter = event.char
 
-        permitidos = (
-            "0123456789"
-            "+-*/().%"
-        )
+        if event.char in "0123456789+-*/.":
 
-        if caracter in permitidos:
-
-            self._agregar(
-                caracter
+            self.click_boton(
+                event.char
             )
 
             return "break"
 
-        # Teclado numérico
-        mapa = {
-            "KP_Add": "+",
-            "KP_Subtract": "-",
-            "KP_Multiply": "*",
-            "KP_Divide": "/",
-            "KP_Decimal": ".",
-        }
+        if tecla in (
+            "Return",
+            "KP_Enter"
+        ):
 
-        if tecla in mapa:
-
-            self._agregar(
-                mapa[tecla]
-            )
+            self.click_boton("=")
 
             return "break"
 
-        return None
+        if tecla in (
+            "Escape",
+            "Delete"
+        ):
 
-    def _tecla_enter(self, event=None):
+            self.click_boton("C")
 
-        self.click_boton("=")
+            return "break"
 
-        return "break"
+        if tecla == "BackSpace":
 
-    def _tecla_escape(self, event=None):
-
-        self.click_boton("C")
-
-        return "break"
-
-    def _tecla_backspace(self, event=None):
-
-        self.click_boton("⌫")
-
-        return "break"
-
-    def _tecla_delete(self, event=None):
-
-        self.click_boton("C")
-
-        return "break"
-
-    def _agregar(self, caracter):
-
-        # Si había un error, empezar de nuevo
-        if self.expresion == "Error":
-            self.expresion = ""
-
-        self.expresion += caracter
-
-        self._actualizar_display()
-
-    def click_boton(self, texto):
-
-        if texto == "C":
-            self.expresion = ""
-
-        elif texto == "⌫":
             self.expresion = (
                 self.expresion[:-1]
             )
 
+            self._actualizar_display()
+
+            return "break"
+
+    def click_boton(self, texto):
+
+        if texto == "C":
+
+            self.expresion = ""
+
         elif texto == "=":
-            self._calcular()
-            return
 
-        elif texto == "±":
-            self._cambiar_signo()
-        elif texto == "%":
+            if not self.expresion:
+                return
 
-            self._porcentaje()
+            try:
 
-        else:
-            self._agregar(
-                texto
-            )
+                caracteres_validos = set(
+                    "0123456789+-*/. "
+                )
 
-            return
+                if not all(
+                    c in caracteres_validos
+                    for c in self.expresion
+                ):
+                    raise ValueError
 
-        self._actualizar_display()
+                expresion_original = (
+                    self.expresion
+                )
 
-    def _calcular(self):
+                resultado = eval(
+                    self.expresion,
+                    {"__builtins__": None},
+                    {}
+                )
 
-        if not self.expresion:
-            return
-
-        try:
-
-            resultado = EvaluadorMatematico.evaluar(
-                self.expresion
-            )
-
-            self.expresion = (
-                self._formatear_resultado(
+                self.expresion = str(
                     resultado
                 )
-            )
 
-        except (
-            ValueError,
-            ZeroDivisionError,
-            OverflowError
-        ):
-
-            self.expresion = "Error"
-
-        self._actualizar_display()
-
-    def _formatear_resultado(
-        self,
-        resultado
-    ):
-
-        if isinstance(
-            resultado,
-            float
-        ):
-
-            if resultado.is_integer():
-
-                return str(
-                    int(resultado)
+                self.historial.registrar(
+                    "Básica",
+                    "Operación",
+                    expresion_original,
+                    self.expresion,
+                    [
+                        f"{expresion_original} = "
+                        f"{self.expresion}"
+                    ]
                 )
 
-            return f"{resultado:.10g}"
+            except (
+                ZeroDivisionError,
+                SyntaxError,
+                TypeError,
+                ValueError
+            ):
 
-        return str(resultado)
-
-    def _cambiar_signo(self):
-
-        if not self.expresion:
-            return
-
-        if self.expresion == "Error":
-
-            self.expresion = ""
-
-            return
-
-        # Si solamente tenemos un número
-        try:
-
-            valor = float(
-                self.expresion
-            )
-
-            self.expresion = (
-                self._formatear_resultado(
-                    -valor
-                )
-            )
-
-            return
-
-        except ValueError:
-            pass
-
-        # Si tenemos una expresión completa
-        if (
-            self.expresion.startswith("-(")
-            and self.expresion.endswith(")")
-        ):
-
-            self.expresion = (
-                self.expresion[2:-1]
-            )
+                self.expresion = "Error"
 
         else:
 
-            self.expresion = (
-                "-("
-                + self.expresion
-                + ")"
-            )
+            if self.expresion == "Error":
+                self.expresion = ""
 
-    # ======================================================
-    # PORCENTAJE
-    # ======================================================
+            self.expresion += texto
 
-    def _porcentaje(self):
-
-        if not self.expresion:
-            return
-
-        if self.expresion == "Error":
-
-            self.expresion = ""
-
-            return
-
-        import re
-
-        coincidencias = list(
-            re.finditer(
-                r"(\d+(?:\.\d+)?)$",
-                self.expresion
-            )
-        )
-
-        if not coincidencias:
-            return
-
-        match = coincidencias[-1]
-
-        numero = float(
-            match.group(1)
-        )
-
-        porcentaje = numero / 100
-
-        reemplazo = (
-            self._formatear_resultado(
-                porcentaje
-            )
-        )
-
-        self.expresion = (
-            self.expresion[:match.start()]
-            + reemplazo
-        )
+        self._actualizar_display()
 
     def _actualizar_display(self):
 
@@ -554,25 +209,7 @@ class BasicaFrame(tk.Frame):
             self.expresion
         )
 
-        self.display.icursor(
-            "end"
-        )
-    def _enfocar_display(self):
-
-        try:
-
-            self.display.focus_set()
-
-        except tk.TclError:
-
-            pass
-
-    def _aplicar_tema(
-        self,
-        paleta
-    ):
-
-        p = paleta
+    def _aplicar_tema(self, p):
 
         self.configure(
             bg=p["bg"]
@@ -598,258 +235,395 @@ class BasicaFrame(tk.Frame):
                 btn.configure(
                     bg=p["accent"],
                     fg="#ffffff",
-                    activebackground=p["accent_hover"],
-                    activeforeground="#ffffff"
+                    activebackground=p["accent_hover"]
                 )
-
 
             elif texto in (
                 "/",
                 "*",
                 "-",
                 "+",
-                "%",
-                "±",
-                "(",
-                ")",
-                "C",
-                "⌫"
+                "C"
             ):
 
                 btn.configure(
                     bg=p["bg_secundario"],
                     fg=p["accent"],
-                    activebackground=p["accent_suave"],
-                    activeforeground=p["accent"]
+                    activebackground=p["accent_suave"]
                 )
-
 
             else:
 
                 btn.configure(
                     bg=p["bg_secundario"],
                     fg=p["fg"],
-                    activebackground=p["accent_suave"],
-                    activeforeground=p["fg"]
+                    activebackground=p["accent_suave"]
                 )
 
 
-
 class CalculadoraFrame(tk.Frame):
-    """
-    Contenedor principal de la calculadora.
-
-    Pestañas:
-        Básica
-        Matrices
-        Conjuntos
-    """
-
-    TABS: ClassVar[
-        tuple[tuple[str, str], ...]
-    ] = (
-        ("basica", "Básica"),
-        ("matrices", "Matrices"),
-        ("conjuntos", "Conjuntos"),
-        ("calculo", "Cálculo"),
-    )
 
     def __init__(
         self,
         parent,
         theme_manager
     ):
-
         super().__init__(parent)
 
         self.theme_manager = theme_manager
 
-        self.tab_actual = 0
-
-
-        self.barra_tabs = tk.Frame(
-            self
+        self.historial = HistorialManager(
+            theme_manager
         )
 
-        self.barra_tabs.pack(
+        self.historial_abierto = False
+        self.animando_historial = False
+        self.animacion_id = None
+
+        self.ancho_historial = 390
+        self.velocidad_historial = 25
+
+        self.barra = tk.Frame(self)
+
+        self.barra.pack(
             fill="x",
-            side="top"
+            padx=8,
+            pady=(8, 0)
         )
 
-        self.botones_tabs = {}
-        self.indicadores_tabs = {}
-
-        self.contenedor = tk.Frame(
-            self
+        self.btn_historial = tk.Button(
+            self.barra,
+            text="Historial ▼",
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            padx=14,
+            pady=7,
+            command=self.toggle_historial
         )
+
+        self.btn_historial.pack(
+            side="right"
+        )
+
+        self.tabs_frame = tk.Frame(self)
+
+        self.tabs_frame.pack(
+            fill="x",
+            padx=8,
+            pady=(8, 0)
+        )
+
+        self.contenedor = tk.Frame(self)
 
         self.contenedor.pack(
             fill="both",
             expand=True
         )
 
+        self.botones = {}
+        self.frames = {}
 
-        self.basica_tab = BasicaFrame(
-            self.contenedor,
-            theme_manager
+        self._crear_pestanas()
+
+        self.historial_frame = (
+            self.historial.crear_panel(
+                self
+            )
         )
 
-        self.matrices_tab = MatricesFrame(
-            self.contenedor,
-            theme_manager
+        self.historial_frame.place(
+            x=0,
+            y=0,
+            width=0,
+            relheight=1
         )
 
-        self.conjuntos_tab = ConjuntosFrame(
-            self.contenedor,
-            theme_manager
-        )
-        self.calculo_tab = CalculoFrame(
-            self.contenedor,
-            theme_manager
-        )
-
-        self.contenidos = [
-            self.basica_tab,
-            self.matrices_tab,
-            self.conjuntos_tab,
-            self.calculo_tab
-        ]
-
-
-        for indice, (tipo, texto) in enumerate(
-            self.TABS
-        ):
-
-            contenedor_tab = tk.Frame(
-                self.barra_tabs
-            )
-
-            contenedor_tab.pack(
-                side="left",
-                padx=(
-                    8 if indice == 0 else 0,
-                    0
-                )
-            )
-
-            boton = tk.Button(
-                contenedor_tab,
-                text=texto,
-                font=("Arial", 10),
-                relief="flat",
-                bd=0,
-                borderwidth=0,
-                highlightthickness=0,
-                cursor="hand2",
-                padx=16,
-                pady=10,
-                command=lambda i=indice:
-                    self._seleccionar_tab(i)
-            )
-
-            boton.pack(
-                side="top"
-            )
-
-            # Línea inferior que indica la pestaña activa
-            indicador = tk.Frame(
-                contenedor_tab,
-                height=2
-            )
-
-            indicador.pack(
-                fill="x",
-                side="bottom"
-            )
-
-            self.botones_tabs[tipo] = boton
-            self.indicadores_tabs[tipo] = indicador
-
- 
         theme_manager.registrar(
             self._aplicar_tema
         )
 
-        self._seleccionar_tab(
-            0
+        self._seleccionar(
+            "Básica"
         )
 
- 
-    def _seleccionar_tab(
-        self,
-        indice
-    ):
+    def _crear_pestanas(self):
 
-        if (
-            indice < 0
-            or indice >= len(self.contenidos)
-        ):
-            return
+        nombres = (
+            "Básica",
+            "Matrices",
+            "Conjuntos",
+            "Cálculo"
+        )
 
-        self.tab_actual = indice
+        self.frames["Básica"] = BasicaFrame(
+            self.contenedor,
+            self.theme_manager,
+            self.historial
+        )
 
-        # Ocultar todas
-        for contenido in self.contenidos:
+        self.frames["Matrices"] = MatricesFrame(
+            self.contenedor,
+            self.theme_manager,
+            self.historial
+        )
 
-            contenido.pack_forget()
+        self.frames["Conjuntos"] = ConjuntosFrame(
+            self.contenedor,
+            self.theme_manager,
+            self.historial
+        )
 
-        # Mostrar la seleccionada
-        self.contenidos[indice].pack(
+        self.frames["Cálculo"] = CalculoFrame(
+            self.contenedor,
+            self.theme_manager,
+            self.historial
+        )
+
+        for nombre in nombres:
+
+            boton = tk.Button(
+                self.tabs_frame,
+                text=nombre,
+                relief="flat",
+                bd=0,
+                cursor="hand2",
+                padx=16,
+                pady=9,
+                command=lambda n=nombre:
+                self._seleccionar(n)
+            )
+
+            boton.pack(
+                side="left",
+                padx=2
+            )
+
+            self.botones[nombre] = boton
+
+    def _seleccionar(self, nombre):
+
+        for frame in self.frames.values():
+
+            frame.pack_forget()
+
+        self.frames[nombre].pack(
             fill="both",
             expand=True
         )
 
         p = self.theme_manager.paleta
 
-        # Actualizar apariencia de tabs
-        for i, (tipo, _texto) in enumerate(
-            self.TABS
-        ):
+        for nombre_tab, boton in self.botones.items():
 
-            boton = self.botones_tabs[tipo]
-            indicador = self.indicadores_tabs[tipo]
+            if nombre_tab == nombre:
 
-            if i == indice:
-
-                # Pestaña seleccionada
                 boton.configure(
-                    bg=p["bg"],
-                    fg=p["accent"],
-                    activebackground=p["bg"],
-                    activeforeground=p["accent"]
-                )
-
-                indicador.configure(
-                    bg=p["accent"]
+                    bg=p["accent"],
+                    fg="#ffffff",
+                    activebackground=p["accent_hover"]
                 )
 
             else:
 
-                # Pestaña normal
                 boton.configure(
                     bg=p["bg"],
                     fg=p["fg_suave"],
-                    activebackground=p["bg"],
-                    activeforeground=p["fg"]
+                    activebackground=p["bg"]
                 )
 
-                indicador.configure(
-                    bg=p["bg"]
-                )
+    def toggle_historial(self):
 
+        if self.animando_historial:
+            return
 
-    def _aplicar_tema(
+        if self.historial_abierto:
+            self._cerrar_historial()
+        else:
+            self._abrir_historial()
+
+    def _abrir_historial(self):
+
+        if self.historial_frame is None:
+            return
+
+        self._cancelar_animacion()
+
+        self.update_idletasks()
+
+        ancho_total = self.winfo_width()
+        alto_total = self.winfo_height()
+
+        if ancho_total <= 0:
+            ancho_total = self.winfo_reqwidth()
+
+        if alto_total <= 0:
+            alto_total = 500
+
+        ancho = min(
+            self.ancho_historial,
+            ancho_total
+        )
+
+        x_inicio = ancho_total
+        x_final = ancho_total - ancho
+
+        self.historial_frame.place(
+            x=x_inicio,
+            y=0,
+            width=ancho,
+            height=alto_total
+        )
+
+        self.historial_frame.lift()
+
+        self.historial.actualizar()
+
+        self.historial_abierto = True
+        self.animando_historial = True
+
+        self.btn_historial.configure(
+            text="Historial ▲"
+        )
+
+        self._animar_historial(
+            x_inicio,
+            x_final,
+            "abrir"
+        )
+
+    def _cerrar_historial(self):
+
+        if self.historial_frame is None:
+            return
+
+        self._cancelar_animacion()
+
+        self.update_idletasks()
+
+        ancho_total = self.winfo_width()
+
+        if ancho_total <= 0:
+            ancho_total = self.winfo_reqwidth()
+
+        ancho = self.historial_frame.winfo_width()
+
+        if ancho <= 0:
+            ancho = self.ancho_historial
+
+        x_inicio = ancho_total - ancho
+        x_final = ancho_total
+
+        self.historial_abierto = False
+        self.animando_historial = True
+
+        self._animar_historial(
+            x_inicio,
+            x_final,
+            "cerrar"
+        )
+
+    def _animar_historial(
         self,
-        paleta
+        x_actual,
+        x_objetivo,
+        accion
     ):
 
-        p = paleta
+        if self.historial_frame is None:
+            self.animando_historial = False
+            return
+
+        if not self.historial_frame.winfo_exists():
+            self.animando_historial = False
+            return
+
+        distancia = x_objetivo - x_actual
+
+        if abs(distancia) <= 3:
+
+            self.historial_frame.place_configure(
+                x=x_objetivo
+            )
+
+            self.animacion_id = None
+            self.animando_historial = False
+
+            if accion == "abrir":
+
+                self.historial_frame.lift()
+
+                self.historial_abierto = True
+
+            else:
+
+                self.historial_frame.place_configure(
+                    x=self.winfo_width(),
+                    width=self.ancho_historial
+                )
+
+                self.historial_abierto = False
+
+                self.btn_historial.configure(
+                    text="Historial ▼"
+                )
+
+                self.historial._limpiar_detalle()
+
+            return
+
+        paso = min(
+            self.velocidad_historial,
+            abs(distancia)
+        )
+
+        if distancia > 0:
+            siguiente = x_actual + paso
+        else:
+            siguiente = x_actual - paso
+
+        self.historial_frame.place_configure(
+            x=siguiente
+        )
+
+        self.historial_frame.lift()
+
+        self.animacion_id = self.after(
+            10,
+            lambda: self._animar_historial(
+                siguiente,
+                x_objetivo,
+                accion
+            )
+        )
+
+    def _cancelar_animacion(self):
+
+        if self.animacion_id is not None:
+
+            try:
+
+                self.after_cancel(
+                    self.animacion_id
+                )
+
+            except tk.TclError:
+                pass
+
+        self.animacion_id = None
+        self.animando_historial = False
+
+    def _aplicar_tema(self, p):
 
         self.configure(
             bg=p["bg"]
         )
 
-        self.barra_tabs.configure(
+        self.barra.configure(
+            bg=p["bg"]
+        )
+
+        self.tabs_frame.configure(
             bg=p["bg"]
         )
 
@@ -857,6 +631,22 @@ class CalculadoraFrame(tk.Frame):
             bg=p["bg"]
         )
 
-        self._seleccionar_tab(
-            self.tab_actual
+        self.btn_historial.configure(
+            bg=p["bg_secundario"],
+            fg=p["accent"],
+            activebackground=p["accent_suave"],
+            activeforeground=p["accent"]
+        )
+
+        nombre_actual = "Básica"
+
+        for nombre, frame in self.frames.items():
+
+            if frame.winfo_ismapped():
+
+                nombre_actual = nombre
+                break
+
+        self._seleccionar(
+            nombre_actual
         )
