@@ -138,21 +138,18 @@ def determinante(m):
     return det, pasos
 
 
-def inversa(m):
+def matriz_cofactores(m):
     n = len(m)
 
     if n != len(m[0]):
         return None, [
-            "Error: la matriz debe ser cuadrada."
+            "Error: la matriz debe ser cuadrada para calcular sus cofactores."
         ]
 
-    det, pasos = determinante(m)
-
-    if abs(det) < 1e-9:
-        pasos.append(
-            "El determinante es 0. La matriz no tiene inversa."
-        )
-        return None, pasos
+    pasos = [
+        "Cada elemento C[i][j] se calcula eliminando la fila i y la columna j "
+        "(el 'menor'), y multiplicando su determinante por el signo (-1)^(i+j)."
+    ]
 
     cofactores = []
 
@@ -176,11 +173,41 @@ def inversa(m):
                 menor
             )
 
-            fila.append(
-                signo * menor_det
+            cof = signo * menor_det
+            fila.append(cof)
+
+            pasos.append(
+                f"C[{i + 1}][{j + 1}]: signo (-1)^{i + j} = {'+1' if signo > 0 else '-1'}, "
+                f"menor = {fmt(menor_det)}  ->  C[{i + 1}][{j + 1}] = {fmt(cof)}"
             )
 
         cofactores.append(fila)
+
+    return cofactores, pasos
+
+
+def inversa(m):
+    n = len(m)
+
+    if n != len(m[0]):
+        return None, [
+            "Error: la matriz debe ser cuadrada."
+        ]
+
+    det, pasos = determinante(m)
+
+    if abs(det) < 1e-9:
+        pasos.append(
+            "El determinante es 0. La matriz no tiene inversa."
+        )
+        return None, pasos
+
+    cofactores, pasos_cofactores = matriz_cofactores(m)
+
+    pasos.append(
+        "Se calcula la matriz de cofactores:"
+    )
+    pasos.extend(pasos_cofactores[1:])  # se omite la explicacion general, ya la sabemos
 
     adjunta = [
         [
@@ -199,15 +226,93 @@ def inversa(m):
     ]
 
     pasos.append(
-        "Se calcula la matriz de cofactores."
+        "Se transpone la matriz de cofactores para obtener la adjunta."
     )
 
     pasos.append(
-        "Se transpone para obtener la adjunta."
+        "Se divide cada elemento de la adjunta entre el determinante."
     )
 
+    return resultado, pasos
+
+
+def _euclides_extendido(a, b):
+    """Devuelve (mcd, x, y) tal que a*x + b*y = mcd(a, b)."""
+    if a == 0:
+        return b, 0, 1
+    g, x1, y1 = _euclides_extendido(b % a, a)
+    x = y1 - (b // a) * x1
+    y = x1
+    return g, x, y
+
+
+def inverso_modular(a, n):
+    """Inverso multiplicativo de 'a' modulo 'n', o None si no existe."""
+    a = a % n
+    g, x, _ = _euclides_extendido(a, n)
+    if g != 1:
+        return None
+    return x % n
+
+
+def inversa_modular(m, n):
+    n = int(round(n))
+    filas = len(m)
+
+    if n < 2:
+        return None, ["Error: el modulo n debe ser mayor o igual a 2."]
+
+    if filas != len(m[0]):
+        return None, ["Error: la matriz debe ser cuadrada."]
+
+    pasos = [f"Trabajando en aritmetica modulo {n}."]
+
+    det, _ = determinante(m)
+    det_entero = round(det)
+
+    if abs(det - det_entero) > 1e-6:
+        pasos.append(
+            f"Determinante = {fmt(det)} (no es un numero entero, "
+            "no se puede trabajar en modulo n)."
+        )
+        return None, pasos
+
+    pasos.append(f"Determinante = {det_entero}")
+
+    det_mod = det_entero % n
+    pasos.append(f"Determinante mod {n} = {det_mod}")
+
+    inv_det = inverso_modular(det_mod, n)
+
+    if inv_det is None:
+        pasos.append(
+            f"No existe inverso modular de {det_mod} en modulo {n} "
+            f"porque mcd({det_mod}, {n}) != 1. La matriz no tiene inversa modular."
+        )
+        return None, pasos
+
     pasos.append(
-        "Se divide cada elemento entre el determinante."
+        f"Inverso modular del determinante: {det_mod}^-1 mod {n} = {inv_det}"
+    )
+
+    cofactores, pasos_cof = matriz_cofactores(m)
+    pasos.append("Matriz de cofactores:")
+    pasos.extend(pasos_cof[1:])
+
+    adjunta = [
+        [cofactores[j][i] for j in range(filas)]
+        for i in range(filas)
+    ]
+
+    pasos.append("Se transpone la matriz de cofactores para obtener la adjunta.")
+
+    resultado = [
+        [int(round(adjunta[i][j])) * inv_det % n for j in range(filas)]
+        for i in range(filas)
+    ]
+
+    pasos.append(
+        f"Cada elemento de la adjunta se multiplica por {inv_det} y se reduce modulo {n}."
     )
 
     return resultado, pasos
@@ -407,7 +512,9 @@ class MatricesFrame(tk.Frame):
                 "Resta",
                 "Multiplicacion",
                 "Determinante",
+                "Matriz de cofactores",
                 "Inversa",
+                "Inversa modular",
                 "Transpuesta"
             ]
         )
@@ -431,6 +538,27 @@ class MatricesFrame(tk.Frame):
         self.btn_calcular.pack(
             side="left",
             padx=10
+        )
+
+        self.label_modulo = tk.Label(
+            self.op_frame,
+            text="n (modulo):"
+        )
+        self.label_modulo.pack(
+            side="left",
+            padx=(10, 0)
+        )
+
+        self.entry_modulo = tk.Entry(
+            self.op_frame,
+            width=5,
+            bd=0,
+            relief="flat"
+        )
+        self.entry_modulo.insert(0, "26")
+        self.entry_modulo.pack(
+            side="left",
+            padx=5
         )
 
         self.label_resultado = tk.Label(
@@ -589,8 +717,19 @@ class MatricesFrame(tk.Frame):
                 det, pasos = determinante(A)
                 resultado = [[det]]
 
+            elif op == "Matriz de cofactores":
+                resultado, pasos = matriz_cofactores(A)
+
             elif op == "Inversa":
                 resultado, pasos = inversa(A)
+
+            elif op == "Inversa modular":
+                try:
+                    n = int(self.entry_modulo.get())
+                except ValueError:
+                    messagebox.showerror("Error", "El modulo n debe ser un numero entero.")
+                    return
+                resultado, pasos = inversa_modular(A, n)
 
             else:
                 resultado, pasos = transponer(A)
@@ -667,6 +806,7 @@ class MatricesFrame(tk.Frame):
             self.label_titulo_a,
             self.label_titulo_b,
             self.label_operacion,
+            self.label_modulo,
             self.label_resultado,
             self.label_proceso
         ):
@@ -674,6 +814,14 @@ class MatricesFrame(tk.Frame):
                 bg=p["bg"],
                 fg=p["fg"]
             )
+
+        self.entry_modulo.configure(
+            bg=p["bg_secundario"],
+            fg=p["fg"],
+            insertbackground=p["fg"],
+            highlightthickness=1,
+            highlightbackground=p["borde"]
+        )
 
         for btn in (
             self.btn_generar,
