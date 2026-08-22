@@ -3,6 +3,7 @@ import tkinter as tk
 from calculator.conjuntos import ConjuntosFrame
 from calculator.matrices import MatricesFrame
 from calculator.calculo import CalculoFrame
+from calculator.aritmetica import AritmeticaFrame
 from calculator.historial import HistorialManager
 
 
@@ -353,7 +354,8 @@ class CalculadoraFrame(tk.Frame):
             "Básica",
             "Matrices",
             "Conjuntos",
-            "Cálculo"
+            "Cálculo",
+            "Aritmética"
         )
 
         self.frames["Básica"] = BasicaFrame(
@@ -375,6 +377,12 @@ class CalculadoraFrame(tk.Frame):
         )
 
         self.frames["Cálculo"] = CalculoFrame(
+            self.contenedor,
+            self.theme_manager,
+            self.historial
+        )
+
+        self.frames["Aritmética"] = AritmeticaFrame(
             self.contenedor,
             self.theme_manager,
             self.historial
