@@ -433,7 +433,7 @@ class CalculoFrame(tk.Frame):
         )
 
         # Boton para ver la grafica -- se crea aca pero NO se empaqueta
-        # todavia; solo aparece despues de un calculo exitoso.
+
         self.btn_graficar = tk.Button(
             self,
             text="📈 Ver gráfica",
@@ -892,8 +892,8 @@ class CalculoFrame(tk.Frame):
                     pasos
                 )
 
-            # Guardamos todo lo necesario para poder graficar despues,
-            # y mostramos el boton (con un texto que depende de la operacion).
+            # Muestra boton despues de un calculo exitoso, y guarda los datos para poder graficar
+
             self._ultima_expr = expr
             self._ultimo_resultado = resultado
             self._ultima_operacion = op
@@ -917,9 +917,7 @@ class CalculoFrame(tk.Frame):
                 f"No se pudo calcular: {error}"
             )
 
-    # ======================================================
-    # GRAFICA
-    # ======================================================
+    # Grafica
 
     def _texto_boton_grafica(self, op, datos):
         if op == "Derivada":
@@ -1115,9 +1113,7 @@ class CalculoFrame(tk.Frame):
         canvas.draw()
         canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
 
-    # ======================================================
-    # TEMA
-    # ======================================================
+    #tema
 
     def _aplicar_tema_error(self, paleta):
         self.configure(
