@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+import math
 
 
 def mcd_euclides(a, b):
@@ -71,7 +72,85 @@ def calcular_mcm(numeros):
     return resultado, pasos
 
 
+def calcular_pitagoras(numeros, hallar="hipotenusa"):
+    if len(numeros) != 2:
+        return None, ["Error: Ingresa exactamente 2 números separados por comas."]
+    
+    pasos = []
+    if hallar == "hipotenusa":
+        a, b = numeros
+        c = math.sqrt(a**2 + b**2)
+        pasos.append(f"Teorema de Pitágoras: c^2 = a^2 + b^2")
+        pasos.append(f"c = \u221a({a}^2 + {b}^2)")
+        pasos.append(f"c = \u221a({a**2:g} + {b**2:g})")
+        pasos.append(f"c = \u221a({(a**2 + b**2):g})")
+        pasos.append(f"Hipotenusa c = {c:.6g}")
+        return round(c, 6), pasos
+    else:
+        h, c1 = numeros
+        if h <= c1:
+            return None, ["Error: La hipotenusa debe ser estrictamente mayor que el cateto."]
+        c2 = math.sqrt(h**2 - c1**2)
+        pasos.append(f"Teorema de Pitágoras: a^2 = c^2 - b^2")
+        pasos.append(f"a = \u221a({h}^2 - {c1}^2)")
+        pasos.append(f"a = \u221a({h**2:g} - {c1**2:g})")
+        pasos.append(f"a = \u221a({(h**2 - c1**2):g})")
+        pasos.append(f"Cateto a = {c2:.6g}")
+        return round(c2, 6), pasos
+
+
+def calcular_tales(numeros):
+    if len(numeros) != 3:
+        return None, ["Error: Ingresa exactamente 3 números (A, B, C) separados por comas."]
+    a, b, c = numeros
+    if a == 0:
+        return None, ["Error: El valor de A no puede ser 0 (división por cero)."]
+    
+    x = (b * c) / a
+    pasos = [
+        "Teorema de Tales: A / B = C / X",
+        f"{a:g} / {b:g} = {c:g} / X",
+        f"X = ({b:g} * {c:g}) / {a:g}",
+        f"X = {(b*c):g} / {a:g}",
+        f"X = {x:.6g}"
+    ]
+    return round(x, 6), pasos
+
+
+def grados_a_radianes(grados):
+    rad = grados * (math.pi / 180)
+    pasos = [
+        "Conversión de grados a radianes:",
+        "Radianes = Grados * (\u03c0 / 180)",
+        f"Radianes = {grados:g} * (\u03c0 / 180)",
+        f"Radianes = {rad:.6g} rad"
+    ]
+    return round(rad, 6), pasos
+
+
+def radianes_a_grados(radianes):
+    grados = radianes * (180 / math.pi)
+    pasos = [
+        "Conversión de radianes a grados:",
+        "Grados = Radianes * (180 / \u03c0)",
+        f"Grados = {radianes:g} * (180 / \u03c0)",
+        f"Grados = {grados:.6g}\u00b0"
+    ]
+    return round(grados, 6), pasos
+
+
 class AritmeticaFrame(tk.Frame):
+    OPERACIONES = [
+        "MCD (Maximo Comun Divisor)",
+        "MCM (Minimo Comun Multiplo)",
+        "Ambos (MCD y MCM)",
+        "Pitágoras (Hallar Hipotenusa)",
+        "Pitágoras (Hallar Cateto)",
+        "Teorema de Tales (A/B = C/X)",
+        "Grados a Radianes",
+        "Radianes a Grados"
+    ]
+
     def __init__(self, parent, theme_manager, historial=None):
         super().__init__(parent)
         self.theme_manager = theme_manager
@@ -100,10 +179,12 @@ class AritmeticaFrame(tk.Frame):
 
         self.combo_operacion = ttk.Combobox(
             self.op_frame, state="readonly",
-            values=["MCD (Maximo Comun Divisor)", "MCM (Minimo Comun Multiplo)", "Ambos"]
+            values=self.OPERACIONES,
+            width=28
         )
         self.combo_operacion.current(0)
         self.combo_operacion.pack(side="left", padx=5)
+        self.combo_operacion.bind("<<ComboboxSelected>>", self._actualizar_label)
 
         self.btn_calcular = tk.Button(
             self.op_frame, text="Calcular", relief="flat", bd=0,
@@ -123,42 +204,101 @@ class AritmeticaFrame(tk.Frame):
 
         theme_manager.registrar(self._aplicar_tema)
 
+    def _actualizar_label(self, event=None):
+        op = self.combo_operacion.get()
+        if op.startswith("MCD") or op.startswith("MCM") or op.startswith("Ambos"):
+            self.label_numeros.config(text="Numeros (separados por comas):")
+            self.label_proceso.config(text="Proceso (algoritmo de Euclides):")
+        elif op == "Pitágoras (Hallar Hipotenusa)":
+            self.label_numeros.config(text="Cateto A, Cateto B:")
+            self.label_proceso.config(text="Proceso (Teorema de Pitágoras):")
+        elif op == "Pitágoras (Hallar Cateto)":
+            self.label_numeros.config(text="Hipotenusa, Cateto:")
+            self.label_proceso.config(text="Proceso (Teorema de Pitágoras):")
+        elif op.startswith("Teorema de Tales"):
+            self.label_numeros.config(text="Valores A, B, C:")
+            self.label_proceso.config(text="Proceso (Teorema de Tales):")
+        elif op == "Grados a Radianes":
+            self.label_numeros.config(text="Ángulo en grados:")
+            self.label_proceso.config(text="Proceso:")
+        elif op == "Radianes a Grados":
+            self.label_numeros.config(text="Ángulo en radianes:")
+            self.label_proceso.config(text="Proceso:")
+
     def _leer_numeros(self):
         texto = self.entry_numeros.get()
         partes = [p.strip() for p in texto.split(",") if p.strip() != ""]
-        return [int(p) for p in partes]
+        # Convertimos a float para soportar decimales en Pitágoras/Tales/Ángulos
+        return [float(p) for p in partes]
 
     def calcular(self):
         try:
             numeros = self._leer_numeros()
         except ValueError:
-            messagebox.showerror("Error", "Ingresa solo numeros enteros, separados por comas.")
+            messagebox.showerror("Error", "Ingresa solo numeros, separados por comas.")
             return
 
-        if len(numeros) < 2:
-            messagebox.showerror("Error", "Ingresa al menos 2 numeros separados por comas.")
+        if not numeros:
+            messagebox.showerror("Error", "Ingresa al menos un valor.")
             return
 
         op = self.combo_operacion.get()
 
-        if op.startswith("MCD"):
-            resultado_mcd, pasos_mcd = calcular_mcd(numeros)
-            texto_resultado = f"mcd = {resultado_mcd}"
-            pasos = pasos_mcd
+        if op.startswith("MCD") or op.startswith("MCM") or op.startswith("Ambos"):
+            if len(numeros) < 2:
+                messagebox.showerror("Error", "Ingresa al menos 2 numeros separados por comas.")
+                return
+            if op.startswith("MCD"):
+                resultado_mcd, pasos_mcd = calcular_mcd(numeros)
+                texto_resultado = f"mcd = {resultado_mcd}"
+                pasos = pasos_mcd
+            elif op.startswith("MCM"):
+                resultado_mcm, pasos_mcm = calcular_mcm(numeros)
+                texto_resultado = f"mcm = {resultado_mcm}"
+                pasos = pasos_mcm
+            else:  # Ambos
+                resultado_mcd, pasos_mcd = calcular_mcd(numeros)
+                resultado_mcm, pasos_mcm = calcular_mcm(numeros)
+                texto_resultado = f"mcd = {resultado_mcd}      mcm = {resultado_mcm}"
+                pasos = (
+                    ["--- MCD ---"] + pasos_mcd
+                    + [""] + ["--- MCM ---"] + pasos_mcm
+                )
 
-        elif op.startswith("MCM"):
-            resultado_mcm, pasos_mcm = calcular_mcm(numeros)
-            texto_resultado = f"mcm = {resultado_mcm}"
-            pasos = pasos_mcm
+        elif op == "Pitágoras (Hallar Hipotenusa)":
+            res, pasos = calcular_pitagoras(numeros, "hipotenusa")
+            if res is None:
+                messagebox.showerror("Error", pasos[0])
+                return
+            texto_resultado = f"Hipotenusa c = {res}"
 
-        else:  # Ambos
-            resultado_mcd, pasos_mcd = calcular_mcd(numeros)
-            resultado_mcm, pasos_mcm = calcular_mcm(numeros)
-            texto_resultado = f"mcd = {resultado_mcd}      mcm = {resultado_mcm}"
-            pasos = (
-                ["--- MCD ---"] + pasos_mcd
-                + [""] + ["--- MCM ---"] + pasos_mcm
-            )
+        elif op == "Pitágoras (Hallar Cateto)":
+            res, pasos = calcular_pitagoras(numeros, "cateto")
+            if res is None:
+                messagebox.showerror("Error", pasos[0])
+                return
+            texto_resultado = f"Cateto a = {res}"
+
+        elif op.startswith("Teorema de Tales"):
+            res, pasos = calcular_tales(numeros)
+            if res is None:
+                messagebox.showerror("Error", pasos[0])
+                return
+            texto_resultado = f"X = {res}"
+
+        elif op == "Grados a Radianes":
+            if len(numeros) != 1:
+                messagebox.showerror("Error", "Ingresa exactamente 1 número.")
+                return
+            res, pasos = grados_a_radianes(numeros[0])
+            texto_resultado = f"{res} rad"
+
+        elif op == "Radianes a Grados":
+            if len(numeros) != 1:
+                messagebox.showerror("Error", "Ingresa exactamente 1 número.")
+                return
+            res, pasos = radianes_a_grados(numeros[0])
+            texto_resultado = f"{res}\u00b0"
 
         self.text_resultado.delete("1.0", "end")
         self.text_proceso.delete("1.0", "end")
@@ -167,7 +307,7 @@ class AritmeticaFrame(tk.Frame):
 
         if self.historial:
             self.historial.registrar(
-                "Aritmetica", op, {"numeros": numeros}, texto_resultado, pasos
+                "Aritmetica", op, {"entrada": self.entry_numeros.get()}, texto_resultado, pasos
             )
 
     def _aplicar_tema(self, p):
