@@ -5,6 +5,7 @@ from calculator.matrices import MatricesFrame
 from calculator.calculo import CalculoFrame
 from calculator.aritmetica import AritmeticaFrame
 from calculator.historial import HistorialManager
+from calculator.trigonometria import TrigonometriaFrame
 
 
 class BasicaFrame(tk.Frame):
@@ -355,7 +356,8 @@ class CalculadoraFrame(tk.Frame):
             "Matrices",
             "Conjuntos",
             "Cálculo",
-            "Aritmética"
+            "Aritmética",
+            "Trigonometría"
         )
 
         self.frames["Básica"] = BasicaFrame(
@@ -383,6 +385,12 @@ class CalculadoraFrame(tk.Frame):
         )
 
         self.frames["Aritmética"] = AritmeticaFrame(
+            self.contenedor,
+            self.theme_manager,
+            self.historial
+        )
+
+        self.frames["Trigonometría"] = TrigonometriaFrame(
             self.contenedor,
             self.theme_manager,
             self.historial
